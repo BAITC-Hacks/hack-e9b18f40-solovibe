@@ -7,7 +7,7 @@ approval_policy = "never"
 [agents]
 enabled = true
 # Keep one model/effort pair active.
-default_subagent_model = "gpt-6-sol"
+default_subagent_model = "gpt-6-astra"
 # default_subagent_model = "gpt-6-luna"
 default_subagent_reasoning_effort = "medium"
 max_concurrent_threads_per_session = 4

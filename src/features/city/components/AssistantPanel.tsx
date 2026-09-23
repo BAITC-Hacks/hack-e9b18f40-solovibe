@@ -31,6 +31,7 @@ function findComparable(evaluation: Evaluation, evidence: EvidenceRef) {
 }
 
 function EvidenceValue({ link, view }: { link: EvidenceLink; view: RunView }) {
+  const scenario=useScenario();
   const locale = useLocale();
   const t = useTranslations("assistant");
   const tCommon = useTranslations("common");
@@ -57,6 +58,7 @@ function EvidenceValue({ link, view }: { link: EvidenceLink; view: RunView }) {
       <ShieldCheck aria-hidden="true" />
       <span>{label}</span>
       <strong>{formatter.format(evidence.value)}</strong>
+      {evaluation.revisionId===scenario.serverView.revision.id&&!scenario.isDirty&&evaluation.result.kind==='official'&&evidence.districtId&&evidence.indicatorId&&<a href={`#evidence-${evidence.districtId}-${evidence.indicatorId}`} className="text-accent underline" onClick={event=>{event.preventDefault();window.dispatchEvent(new CustomEvent('city-evidence',{detail:{revisionId:evaluation.revisionId,districtId:evidence.districtId,indicatorId:evidence.indicatorId}}));}}>{t('openEvidence')}</a>}
       {delta !== null ? (
         <small className={cn(delta > 0 && "cba-delta-positive", delta < 0 && "cba-delta-negative")}>
           {t("comparedWithSource")}: {delta > 0 ? "+" : ""}{formatter.format(delta)}

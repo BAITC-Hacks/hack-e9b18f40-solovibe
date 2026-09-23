@@ -76,7 +76,7 @@ async function enforceQuota(tx: CityTx, p: Principal) {
   const [row] = await tx.select({ count: sql<number>`count(*)::int` }).from(cityScenarios).where(and(inArray(cityScenarios.ownerId, p.ownerIds), isNull(cityScenarios.deletedAt)));
   if (row.count >= (p.kind === "account" ? 100 : 10)) throw new CityError("SCENARIO_LIMIT", 429);
 }
-export async function createScenario(p: Principal, input: z.infer<typeof createScenarioSchema>, preset?: { decisions: Decision[]; constraints: Constraints; sourceRevisionId: string; intent: string }): Promise<ScenarioView> {
+export async function createScenario(p: Principal, input: z.infer<typeof createScenarioSchema>, preset?: { decisions: Decision[]; constraints: Constraints; sourceRevisionId: string|null; intent: string }): Promise<ScenarioView> {
   if (!p.primaryOwnerId) throw new CityError("SESSION_EXPIRED", 401);
   let decisions = preset?.decisions ?? (input.source === "blank" ? [] : EXAMPLE_DECISIONS);
   let constraints = preset?.constraints ?? DEFAULT_CONSTRAINTS;

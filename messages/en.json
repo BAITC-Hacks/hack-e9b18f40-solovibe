@@ -81,7 +81,8 @@
     "INCOMPATIBLE_COMPARISON": "These versions use different source data or assumptions. Open them separately.",
     "STALE_BRIEF": "The brief changed. Keep your text and load the current version before retrying.",
     "ARTIFACT_NOT_READY": "The file is not ready. Wait for completion or retry saving.",
-    "SHARE_UNAVAILABLE": "This link is unavailable or expired. Ask its author for a new one."
+    "SHARE_UNAVAILABLE": "This link is unavailable or expired. Ask its author for a new one.",
+    "STALE_EVIDENCE": "The result source changed. Select the current version and retry."
   },
   "common": {
     "language": "Language",
@@ -294,7 +295,8 @@
     "toolRepairStress": "Finding a repair",
     "toolReadBrief": "Reading the brief",
     "toolWriteBrief": "Saving the brief",
-    "toolUpdateBrief": "Refining the selected section"
+    "toolUpdateBrief": "Refining the selected section",
+    "openEvidence": "Open calculation"
   },
   "evidence": {
     "formula": "How the result is calculated",
@@ -462,7 +464,7 @@
     "budget": "Budget",
     "score": "City score",
     "conditionPrice": "Cost of the condition: {value} points",
-    "conditionPriceOff": "Showing the best option without the additional condition",
+    "conditionPriceOff": "The option without the additional condition is shown",
     "primaryAction": "Build my scenario",
     "starting": "Creating scenario…",
     "exampleAction": "Open the 95 unit example",
@@ -493,7 +495,15 @@
     "briefControlValue": "Change a measure and recalculate",
     "modelNote": "The calculation uses synthetic data and effects over eight quarters. You control the measures and conditions; the score is for comparing options.",
     "finalTitle": "Build an option around your conditions",
-    "finalIntro": "The current decisions and selected condition will continue into your scenario."
+    "finalIntro": "The current decisions and selected condition will continue into your scenario.",
+    "savedExample": "A brief for the two-district option",
+    "savedLanguage": "Saved text in Russian. File labels use your selected language.",
+    "testedChange": "What a cost increase changes",
+    "testedResult": "A 20% increase in the rail project changes the budget from {before} to {after}. The saved repair returns it to {repair} while keeping the school in Nura.",
+    "useDocument": "Open the actual example with selected measures, findings, a tradeoff and the tested assumption. Print the HTML file to PDF.",
+    "downloadHtml": "Printable brief",
+    "myScenarios": "My scenarios",
+    "navigation": "Navigation"
   },
   "stress": {
     "eyebrow": "Test your decisions",

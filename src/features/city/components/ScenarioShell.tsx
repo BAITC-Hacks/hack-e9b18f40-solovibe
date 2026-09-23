@@ -3,7 +3,7 @@
 import { AlertTriangle, ArrowRight, Bot, CheckCircle2, Coins, Pencil, Scale, Server, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
-import type { Decision, DistrictId, DomainIssue } from "../contracts";
+import {DISTRICT_IDS,INDICATOR_IDS,type Decision,type DistrictId,type DomainIssue} from "../contracts";
 import type { ScenarioView } from "../records";
 import { useScenarioController } from "../client/use-scenario-controller";
 import { ScenarioControllerProvider } from "../client/scenario-context";
@@ -41,6 +41,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const chatCloseRef = useRef<HTMLButtonElement>(null);
   const chatLaunchRef = useRef<HTMLButtonElement>(null);
+  useEffect(()=>{const open=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.revisionId!==controller.serverView.revision.id||!DISTRICT_IDS.includes(detail.districtId)||!INDICATOR_IDS.includes(detail.indicatorId))return;setSelectedDistrictId(detail.districtId);setChatOpen(false);requestAnimationFrame(()=>{const node=document.getElementById(`evidence-${detail.districtId}-${detail.indicatorId}`) as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});node.querySelector('summary')?.focus();}});};window.addEventListener('city-evidence',open);return()=>window.removeEventListener('city-evidence',open);},[controller.serverView.revision.id]);
 
   const closeChat = useCallback(() => {
     setChatOpen(false);

@@ -1,0 +1,42 @@
+{
+  "sourceRevisionId": "912f3f16-68e6-4cdd-9116-77e62e6b5ed6",
+  "briefId": "d4f0924b-d219-4041-8c24-32ef0591a22f",
+  "briefVersion": 2,
+  "datasetVersion": "akim-v1",
+  "sourceHash": "15901a62d06847095db6bff01da0cebaf54e8d16f6a75bb42ce899dd5c762327",
+  "locale": "ru",
+  "title": "Вложения в два района",
+  "benefit": "В Нуре улучшаются показатели доступности транспорта и социальных услуг; в Есиле растет показатель безопасности движения.",
+  "tradeoff": "По сравнению с ремонтным вариантом транспортная доступность в Есиле ниже: выбор железнодорожного проекта вместо выделенных автобусных полос и адаптивных светофоров дает уступку по этому показателю.",
+  "limit": "Это результаты модели, а не прогнозы реальных условий и не доказательство причинно-следственных эффектов; фактические сроки, затраты и результаты могут отличаться.",
+  "cost": 100,
+  "score": 56.9977,
+  "stressCost": 106,
+  "repairCost": 100,
+  "files": [
+    {
+      "path": "/examples/citybalance-two-districts-ru.html",
+      "sha256": "6fe9edb429ff4b1e4c04f6b1ba31ee1fd0f9f8d778b4fd59348dacead2c6279b"
+    },
+    {
+      "path": "/examples/citybalance-two-districts-ru.csv",
+      "sha256": "28a7f090b879564bcd97ceb183690f716b8ff082f9ad5108497d209c7ea3b877"
+    },
+    {
+      "path": "/examples/citybalance-two-districts-kk.html",
+      "sha256": "5f0c6923c82ae4e895063ef619550930a0bec48a49db81dd10c459984bfd87a4"
+    },
+    {
+      "path": "/examples/citybalance-two-districts-kk.csv",
+      "sha256": "8b806ae7bd3a31446459bd51ce93d869b26deecc397b7ca8c514570b024e0701"
+    },
+    {
+      "path": "/examples/citybalance-two-districts-en.html",
+      "sha256": "3403bfd4a3581c0dbe2512dc2c1a975f956b59c7c5b26c642cf98170cfa384eb"
+    },
+    {
+      "path": "/examples/citybalance-two-districts-en.csv",
+      "sha256": "f2e6bfab323d8dd6ab77a170939911575fdeea78a99cffaad3ab73375b31f9a9"
+    }
+  ]
+}

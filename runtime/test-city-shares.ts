@@ -39,7 +39,7 @@ try {
   assert.ok(!JSON.stringify(publicBefore).includes(p.primaryOwnerId!)); assert.ok(!('intent' in publicBefore));
   const fork = await forkSharedScenario(other, token, { clientMutationId: randomUUID(), title: 'My copy' });
   assert.deepEqual(fork.revision.decisions, publicBefore.decisions); assert.equal(fork.scenario.title, 'My copy');
-  assert.equal(fork.revision.sourceRevisionId, source.revision.id); assert.match(fork.revision.intent, /Shared snapshot/);
+  assert.equal(fork.revision.sourceRevisionId, null); assert.ok(fork.revision.intent.includes(source.revision.id)); assert.match(fork.revision.intent, /Shared snapshot/);
   await assert.rejects(getScenario(other, source.scenario.id), { code: 'NOT_FOUND' });
   const edited = await saveRevision(p, source.scenario.id, { expectedRevisionId: source.revision.id, decisions: source.revision.decisions, constraints: { ...source.revision.constraints, minDirectDistricts: 1 }, intent: 'Private updated user prompt', clientMutationId: randomUUID() });
   assert.deepEqual(await getPublicSnapshot(token), publicBefore);

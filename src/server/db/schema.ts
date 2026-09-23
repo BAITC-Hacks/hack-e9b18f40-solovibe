@@ -89,7 +89,7 @@ export const cityRevisions = pgTable("city_revisions", {
   id: text("id").primaryKey(),
   scenarioId: text("scenario_id").notNull().references(() => cityScenarios.id, { onDelete: "cascade" }),
   parentId: text("parent_id").references((): AnyPgColumn => cityRevisions.id),
-  sourceRevisionId: text("source_revision_id").references((): AnyPgColumn => cityRevisions.id),
+  sourceRevisionId: text("source_revision_id").references((): AnyPgColumn => cityRevisions.id,{onDelete:'set null'}),
   decisions: jsonb("decisions").$type<Decision[]>().notNull(),
   constraints: jsonb("constraints").$type<Constraints>().notNull(),
   intent: text("intent").notNull().default(""),

@@ -33,7 +33,9 @@
     "test:brief": "tsx runtime/test-city-brief.ts",
     "test:exports": "tsx --conditions=react-server runtime/test-city-exports.ts",
     "test:shares": "tsx --conditions=react-server runtime/test-city-shares.ts",
-    "verify:delivery": "tsx runtime/verify-city-delivery.ts"
+    "verify:delivery": "tsx runtime/verify-city-delivery.ts",
+    "verify:journey": "node runtime/verify-city-journey.mjs",
+    "test:retention": "tsx runtime/test-city-retention.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.63",

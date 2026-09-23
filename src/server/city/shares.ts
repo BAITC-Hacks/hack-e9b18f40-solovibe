@@ -112,8 +112,8 @@ export async function compareSharedPlans(inputs: readonly string[]): Promise<Sha
 export async function forkSharedScenario(p: Principal, token: string, input: z.infer<typeof forkShareSchema>) {
   const share = await liveShare(token);
   return createScenario(p, { source: 'blank', title: input.title ?? share.snapshot.title, clientMutationId: input.clientMutationId }, {
-    decisions: share.snapshot.decisions, constraints: share.snapshot.constraints, sourceRevisionId: share.revisionId,
-    intent: `Shared snapshot: ${share.snapshot.teamName || share.snapshot.title}`,
+    decisions: share.snapshot.decisions, constraints: share.snapshot.constraints, sourceRevisionId: null,
+    intent: `Shared snapshot: ${share.snapshot.teamName || share.snapshot.title}; published revision ${share.revisionId}`,
   });
 }
 export async function publicShareRoute(handler: () => Promise<unknown | Response>, status = 200): Promise<Response> {

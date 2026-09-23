@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, Check, FileText, Plus, RefreshCw } from "lucide-react";
 import type { DistrictId, Evaluation } from "@/features/city/contracts";
 import type { ScenarioView } from "@/features/city/records";
-import { useRouter } from "@/i18n/navigation";
+import { Link,useRouter } from "@/i18n/navigation";
+import {AccountControl} from '@/components/app/AccountControl';
 import { cityApi, errorCode } from "@/lib/city-api";
 import { Alert, Button, LanguageSelector } from "@/components/ui";
 import { Logo } from "@/components/brand";
@@ -18,6 +19,7 @@ export interface LandingProps {
   best: Evaluation;
   twoDistricts: Evaluation;
   deliveryProof?: ReactNode;
+  initialVariant?:ProofVariant;
 }
 
 const districtOrder: readonly DistrictId[] = ["yesil", "almaty", "saryarka", "baikonur", "nura"];
@@ -155,7 +157,7 @@ function Metric({ label, before, after, suffix }: { label: string; before?: stri
   );
 }
 
-export function Landing({ best, twoDistricts, deliveryProof }: LandingProps) {
+export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-districts' }: LandingProps) {
   const locale = useLocale();
   const t = useTranslations("landing");
   const tMeasures = useTranslations("measures");
@@ -163,7 +165,7 @@ export function Landing({ best, twoDistricts, deliveryProof }: LandingProps) {
   const tErrors = useTranslations("errors");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const [variant, setVariant] = useState<ProofVariant>("two-districts");
+  const [variant, setVariant] = useState<ProofVariant>(initialVariant);
   const [pending, setPending] = useState<StartKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failedKind, setFailedKind] = useState<StartKind | null>(null);
@@ -215,7 +217,7 @@ export function Landing({ best, twoDistricts, deliveryProof }: LandingProps) {
     <main className="landing-root">
       <header className="landing-header">
         <Logo />
-        <LanguageSelector label={tCommon("language")} />
+        <nav className="landing-navigation" aria-label={t('navigation')}><Link href="/scenarios">{t('myScenarios')}</Link><AccountControl returnTo={`/?variant=${variant}`}/><LanguageSelector label={tCommon("language")} /></nav>
       </header>
 
       <section className="landing-hero" aria-labelledby="landing-title">
@@ -233,7 +235,7 @@ export function Landing({ best, twoDistricts, deliveryProof }: LandingProps) {
               aria-checked={variant === "two-districts"}
               aria-label={t("conditionToggle")}
               className="landing-switch"
-              onClick={() => setVariant((value) => (value === "best" ? "two-districts" : "best"))}
+              onClick={() => {const next=variant==='best'?'two-districts':'best';setVariant(next);const url=new URL(window.location.href);url.searchParams.set('variant',next);window.history.replaceState(window.history.state,'',url);}}
             >
               <span />
             </button>

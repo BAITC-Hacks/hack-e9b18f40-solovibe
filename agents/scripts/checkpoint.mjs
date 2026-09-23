@@ -1,7 +1,7 @@
 import "./context.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync,writeFileSync } from "node:fs";
 import { runQuiet, pnpmCommand } from "./quiet.mjs";
 
 function fingerprint() {
@@ -21,11 +21,16 @@ function fingerprint() {
 async function check() {
   mkdirSync(".checks/logs", { recursive: true });
   const before = fingerprint();
+  try {
+    const verified=JSON.parse(readFileSync('.checks/verified.json','utf8'));
+    if(verified.fingerprint===before&&['typecheck','lint','build'].every(name=>verified.checks?.includes(name))){console.log('checks: reused verified unchanged application');return;}
+  } catch { /* Missing or invalid local evidence requires fresh checks. */ }
   for (const script of ["typecheck", "lint", "build"]) {
     const [command, args] = pnpmCommand(script);
     await runQuiet(script, command, args);
   }
   if (fingerprint() !== before) throw new Error("Files changed during checks; finish the writing batch and retry.");
+  writeFileSync('.checks/verified.json',JSON.stringify({fingerprint:before,checks:['typecheck','lint','build']}));
 }
 
 async function main() {
