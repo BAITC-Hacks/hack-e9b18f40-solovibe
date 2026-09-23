@@ -1,8 +1,9 @@
 # 02 Complete decision workshop
-Status: not started. Requires completed01 and its actual code/contracts/evidence; do not recreate foundations. This chat finishes02.1–02.3 and hands off to03.
+Status: active in the combined02–04 MAIN assignment. Requires completed01 and its actual code/contracts/evidence; do not recreate foundations. Finish02.1–02.3 and continue03 in this chat, with independent04.1 work in parallel. The chat boundary is05.1 after all eight02–04 blocks.
 Read PROJECT, PLAN C1–C9, own stage, relevant design/AI guidance. Existing city services/types are authoritative. Inherit C3/C4 owner/CAS/idempotency, C7 ru/kk/en/responsive states, C5 run limits. MAIN owns routes/types/schema/messages; a worker may own evidence views while MAIN implements search comparison, then stress views after contract handoff. No concurrent writers to shared files.
 
 ## 02.1 Evidence that explains each consequence
+Implementation integrated; exact attribution3 tests and workshop PostgreSQL checks passed. Checkpoint pending.
 Outcome: user can understand and change the five choices, locate a weak indicator, inspect the formula and see the actual source of the change.
 Paths: src/features/city/{evidence.ts,attribution.ts,components/evidence/,components/CityBoard*,components/Catalogue*,components/DecisionTray*}; src/server/city/scenarios.ts; messages/*.json; domain fixtures.
 Inputs/results: current saved revision plus local preview, selected district/measure; no new external data. Evaluation retains all50 values, active synergies, clipping and reference baseline.
@@ -17,6 +18,7 @@ Acceptance: V1 source trace reaches exact source values/measure effects; Shapley
 Commit: complete catalogue/evidence/attribution capability.
 
 ## 02.2 User priorities, branches and comparisons
+Implementation integrated; actual PostgreSQL price/search branches/compare/rights/CAS/history/fork/cancel and proof continuation passed. Checkpoint pending.
 Outcome: users can obtain and act on alternatives without re-entering context; the visible price of their condition has exact evidence.
 Paths: src/features/city/components/{Priorities,Comparison,AlternativeCard,RevisionHistory}*; src/server/city/{searches.ts,comparisons.ts,revisions.ts}; src/server/city/ai/{tools.ts,prompts/compare.ts,prompts/plan.ts}; /api/city/{searches,comparisons,scenarios/[id]/forks,scenarios/[id]/apply}; messages/schema as needed.
 Inputs/results: C2 normalized constraints plus saved source revision; branches already exist from01. Add derived comparison response referencing up to3 owned revision IDs rather than duplicating scenario state.
@@ -50,4 +52,4 @@ Entities: city_stress_tests {id,ownerId,sourceRevisionId,assumption,baselineEval
 6. Allow apply/fork of repaired decision set to current scenario with visible source: ordinary official evaluation is recalculated from original dataset, while attached experiment retains its sensitivity result. Never silently replace original catalogue cost/lag or combine these in team ranking. The user can continue editing either decisions or assumptions.
 7. Persist repeated experiment versions or new IDs; changing source marks prior stress historical. AI interrupt/retry reuses receipts and leaves useful saved evaluations; failure in repair keeps original experiment.
 Acceptance: V5 on constrained two-district portfolio (cost100 with M3 cost30) at+20% makes cost106 and no valid sensitivity Score. Search respects pinned M7/Nura and100; return actual legal repair or evidenced none. Delay+1 changes realized M3 effects/Score; delay cap8 no negative realized share. Reopen experiment, switch locale and apply repaired choices with both official/sensitivity provenance intact. Focused math/CAS and one live stress prompt path.
-Commit: complete sensitivity/repair. Exit02: full workshop works; update PROJECT feature status/STATE, stop writers and hand off03.1. Export/share/brief UI still absent until implemented, not shown as disabled promised placeholders.
+Commit: complete sensitivity/repair. Exit02: full workshop works; update PROJECT feature status/STATE and continue03.1 in the combined assignment. Export/share/brief UI still absent until implemented, not shown as disabled promised placeholders.

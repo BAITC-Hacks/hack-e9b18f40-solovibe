@@ -1,5 +1,5 @@
 # 03 Decision brief, files and shared team comparison
-Status: not started. Requires02 full workshop and01 durable jobs/ownership. Complete03.1–03.3 then hand off04.
+Status: pending within the combined02–04 MAIN assignment. Requires checked02 contracts/results and01 durable jobs/ownership; independent packages may start as these inputs become ready. Complete03.1–03.3 then continue final04 integration in this chat. The handoff is05.1 after all eight02–04 blocks.
 Read PROJECT, PLAN C1–C9, this stage, integrations STORAGE/AUTH/AI and relevant design/COPY. Existing adapters/services own actual contracts. All blocks inherit C3/C4 rights/CAS/error/state and C7 localization/mobile. MAIN owns schema/dependencies/routes/messages; an independent worker can implement brief renderer/presentation components after structured Brief contract, while MAIN handles persistence/exports. Storage and share permissions stay integrated under MAIN.
 
 ## 03.1 A usable, editable decision brief
@@ -43,4 +43,4 @@ Entity city_shares {id,ownerId,tokenHash,scenarioId,revisionId,briefId/version?,
 6. Changes after publication create private later versions; only explicit new share publishes them. User can see snapshot revision in list/detail and distinguish current vs shared work. If compared link is revoked mid-use, remove its access/results on next fetch and show useful error.
 States: loading/expired/revoked/not-found share views are localized and do not reveal private metadata; copy action confirms actual clipboard success with selectable-link fallback. Mobile comparisons remain readable and operable. Public locale may change labels, not authored brief content.
 Acceptance: V7 cross-owner/private denial, successful intended public read, incompatible dataset/sensitivity rejection, revoke denies page-data/download, token not in logs, post-share private edit not visible, deleting original invalidates all derived links. Fork owns only public data and preserves attribution. Test with real distinct owners, not hidden controls alone.
-Commit and exit: complete03.1–03.3, actual storage/provider proof recorded, no file writers left. Handoff04.1 with full suite implemented; no README/video production yet.
+Commit and exit: complete03.1–03.3, actual storage/provider proof recorded, all checkpoint package writers finished. Continue04.1/04.2 with the full suite implemented; no README/video production yet.

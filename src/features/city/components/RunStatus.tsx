@@ -16,6 +16,10 @@ const statusIcons = {
 
 const toolKeys: Record<string, string> = {
   readScenario: "toolReadScenario",
+  getAttribution: 'toolGetAttribution',
+  comparePlans: 'toolComparePlans',
+  priceCondition: 'toolPriceCondition',
+  applyAlternative: 'toolApplyAlternative',
   readEvidence: "toolReadEvidence",
   validatePlan: "toolValidatePlan",
   simulatePlan: "toolSimulatePlan",

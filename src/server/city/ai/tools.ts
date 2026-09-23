@@ -4,15 +4,17 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { analysisDocumentSchema, type AnalysisDocument } from '@/features/city/ai-contracts';
 import { constraintsSchema, decisionSchema } from '@/features/city/contracts';
-import { AKIM_DATASET } from '@/features/city/data/akim-v1';
+import { AKIM_DATASET, DEFAULT_CONSTRAINTS } from '@/features/city/data/akim-v1';
 import { evaluate, validateDecisions } from '@/features/city/engine';
 import { readEvidence } from '@/features/city/evidence';
+import { getAttribution } from '@/features/city/attribution';
+import { comparePlans } from '../comparisons';
 import { searchPlans as exactSearch } from '@/features/city/search';
 import { getDb, type CityTx } from '@/server/db/core';
-import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, citySearches } from '@/server/db/schema';
+import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, cityScenarios, citySearches } from '@/server/db/schema';
 import type { ToolExecution } from '../job-contracts';
 import { CityError } from '../errors';
-import { insertRevision } from '../scenarios';
+import { getRevision, insertRevision, requireScenario } from '../scenarios';
 import { catalogueForModel, compactEvaluation, compactSearch, failedAnalysisAttempts, freshRun, hardConditionIssues, intentConstraints, loadEvaluation, loadSearch, loadSource, observations } from './context';
 import { checkAnalysis, type QualityContext } from './quality';
 
@@ -63,6 +65,19 @@ export function createCityTools(execution: ToolExecution) {
     return { procedure: run.procedure, source, candidate, search, requiredConstraints, evaluations };
   }
   return {
+    priceCondition:tool({strict:false,description:'Run two exact searches for the price of ONE added condition, holding every other condition/objective fixed. Baseline explicitly removes only the named condition; it is a diagnostic comparison, never authorization to relax the actual plan. A Score optimality gap requires both exhaustive maxScore results.',
+      inputSchema:z.object({sourceRevisionId:z.string().uuid(),constraints:constraintsSchema,changedConstraint:z.enum(['minDirectDistricts','maxCriticalPairs','maxSpend','requiredDirections','locked','excludedMeasureIds','districtFloors','indicatorFloors'])}).strict(),
+      execute:input=>perform('priceCondition',input,async()=>{if(input.sourceRevisionId!==run.inputRevisionId)throw new CityError('NOT_FOUND',404);const source=await loadSource(run);if(hardConditionIssues(intentConstraints(source.revision.constraints,run.objective),input.constraints).length)throw new CityError('RELAXED_HARD_CONDITION');
+        const base={...input.constraints,[input.changedConstraint]:DEFAULT_CONSTRAINTS[input.changedConstraint]};
+        const before=await exactSearch({datasetVersion:AKIM_DATASET.version,constraints:base,limit:1,signal:execution.lease.signal});
+        const after=await exactSearch({datasetVersion:AKIM_DATASET.version,constraints:input.constraints,limit:3,signal:execution.lease.signal});return {before,after};
+      },async(tx,value)=>{const beforeId=randomUUID(),afterId=randomUUID();for(const [id,result] of [[beforeId,value.before],[afterId,value.after]] as const)await tx.insert(citySearches).values({id,ownerId:run.ownerId,scenarioId:run.scenarioId,inputRevisionId:run.inputRevisionId,runId:run.id,inputHash:result.inputHash,result});return {before:{searchId:beforeId,...compactSearch(value.before)},after:{searchId:afterId,...compactSearch(value.after)},changedConstraint:input.changedConstraint};})}),
+    applyAlternative:tool({strict:false,description:'Only for an explicit user request to apply/replace the current plan. Create a new active revision from an owned candidate in the same scenario, preserving history. Suggestion or comparison requests do not authorize this operation; stale current revisions fail.',
+      inputSchema:z.object({scenarioId:z.string().uuid(),expectedRevisionId:z.string().uuid(),candidateRevisionId:z.string().uuid()}).strict(),execute:input=>perform('applyAlternative',input,async()=>{if(input.scenarioId!==run.scenarioId||input.expectedRevisionId!==run.inputRevisionId)throw new CityError('STALE_REVISION',409);if(!/(?:примени|замени|используй|apply|replace|қолдан|ауыстыр)/iu.test(run.objective)||/(?:не\s+(?:примен|замен|использ)|do not|don't)/iu.test(run.objective))throw new CityError('FORBIDDEN',403);const p={ownerIds:[run.ownerId],primaryOwnerId:run.ownerId,userId:null,kind:'guest' as const};return getRevision(p,run.scenarioId,input.candidateRevisionId);},async(tx,selected)=>{const p={ownerIds:[run.ownerId],primaryOwnerId:run.ownerId,userId:null,kind:'guest' as const};const scenario=await requireScenario(p,run.scenarioId,tx,true);if(scenario.currentRevisionId!==input.expectedRevisionId)throw new CityError('STALE_REVISION',409);const saved=await insertRevision(tx,{scenarioId:run.scenarioId,decisions:selected.revision.decisions,constraints:selected.revision.constraints,clientMutationId:`apply:${run.id}:${input.candidateRevisionId}`,cause:'apply',parentId:input.expectedRevisionId,sourceRevisionId:input.candidateRevisionId,intent:run.objective});await tx.update(cityScenarios).set({currentRevisionId:saved.revision.id,updatedAt:new Date()}).where(eq(cityScenarios.id,run.scenarioId));return {revisionId:saved.revision.id,evaluation:compactEvaluation(saved.evaluation.result,saved.evaluation.id)};})}),
+    getAttribution: tool({strict:false,description:'Exact Shapley allocation of source model Score change over every subset/order. This is model attribution, never real-world causality. Values add to final minus baseline; cite existing source evaluation evidence.',
+      inputSchema:z.object({revisionId:z.string().uuid()}).strict(),execute:input=>perform('getAttribution',input,async()=>{if(input.revisionId!==run.inputRevisionId)throw new CityError('NOT_FOUND',404);const source=await loadSource(run);if(!source.evaluation.result.complete)throw new CityError('INVALID_PLAN');return {evaluationId:source.evaluation.id,...getAttribution(AKIM_DATASET,source.revision.decisions)};})}),
+    comparePlans: tool({strict:false,description:'Compare up to three owned official revisions from this scenario with exact district, component and decision differences. No ranking across sensitivity assumptions.',
+      inputSchema:z.object({revisionIds:z.array(z.string().uuid()).min(1).max(3)}).strict(),execute:input=>perform('comparePlans',input,async()=>{await loadSource(run);const view=await comparePlans({ownerIds:[run.ownerId],primaryOwnerId:run.ownerId,userId:null,kind:'guest'},input.revisionIds);if(view.snapshots.some(s=>s.revision.scenarioId!==run.scenarioId))throw new CityError('NOT_FOUND',404);return view;})}),
     readScenario: tool({
       strict: false,
       description: 'Read the exact source revision bound to this run, its official calculation, available catalogue and required conditions. No arbitrary IDs or owner are accepted. Existing source decisions are not locks unless conditions or user intent pin them.',

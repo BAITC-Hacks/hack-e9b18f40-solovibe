@@ -2,12 +2,13 @@
 
 import { MapPin, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { Decision } from "../contracts";
+import type { Constraints, Decision } from "../contracts";
 import { AKIM_DATASET } from "../data/akim-v1";
 import { cn } from "@/components/ui";
 
 export interface DecisionTrayProps {
   decisions: readonly Decision[];
+  constraints?: Constraints;
   replacementSlot: number | null;
   onReplacementSlotChange: (slot: number | null) => void;
   onBrowseCatalogue: () => void;
@@ -16,11 +17,13 @@ export interface DecisionTrayProps {
 
 export function DecisionTray({
   decisions,
+  constraints,
   replacementSlot,
   onReplacementSlotChange,
   onBrowseCatalogue,
   onRemove,
 }: DecisionTrayProps) {
+  const t = useTranslations("evidence");
   const tMeasures = useTranslations("measures");
   const tDistricts = useTranslations("districts");
   const tCommon = useTranslations("common");
@@ -48,6 +51,7 @@ export function DecisionTray({
           const decision = decisions[slot];
           const measure = decision ? AKIM_DATASET.measures.find((entry) => entry.id === decision.measureId) : null;
           const selected = replacementSlot === slot;
+          const locked = !!decision && !!constraints?.locked.some(d => d.measureId === decision.measureId);
           return (
             <li key={slot} className={cn("cb-tray-slot", selected && "cb-tray-slot-selected", !decision && "cb-tray-slot-empty")}>
               <span className="cb-slot-number" aria-hidden="true">{slot + 1}</span>
@@ -65,16 +69,18 @@ export function DecisionTray({
                   <button
                     type="button"
                     className="cb-slot-action"
+                    disabled={locked}
                     aria-pressed={selected}
                     onClick={() => {
                       onReplacementSlotChange(selected ? null : slot);
                     }}
                   >
-                    {selected ? tBoard("replacementSelected") : tBoard("replaceHere")}
+                    {locked ? t("locked") : selected ? tBoard("replacementSelected") : tBoard("replaceHere")}
                   </button>
                   <button
                     type="button"
                     className="cb-icon-button"
+                    disabled={locked}
                     aria-label={`${tBoard("removeMeasure")}: ${tMeasures(decision.measureId)}`}
                     onClick={() => onRemove(slot)}
                   >

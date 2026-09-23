@@ -1,0 +1,1 @@
+ALTER TABLE "city_searches" ADD COLUMN "baseline_result" jsonb;

@@ -72,7 +72,7 @@ export async function createExecution(lease: JobLease): Promise<ToolExecution> {
       if (overBudget) throw new CityError("INVALID_AI_RESULT", 503);
     },
     async tool<T, P = T>(name: string, input: unknown, prepare: () => Promise<P>, commit?: (tx: CityTx, prepared: P) => Promise<T>): Promise<T> {
-      const allowed = ["readScenario", "readEvidence", "validatePlan", "simulatePlan", "searchPlans", "saveAlternative", "saveAnalysis", "requestClarification"];
+      const allowed = ["readScenario", "readEvidence", "getAttribution", "comparePlans", "priceCondition", "applyAlternative", "validatePlan", "simulatePlan", "searchPlans", "saveAlternative", "saveAnalysis", "requestClarification"];
       if (!allowed.includes(name)) throw new CityError("INVALID_AI_RESULT", 503);
       const encoded = stableJson(input);
       if (Buffer.byteLength(encoded) > 65536) throw new CityError("INVALID_AI_RESULT", 503);
@@ -80,8 +80,9 @@ export async function createExecution(lease: JobLease): Promise<ToolExecution> {
       const existing = await withLease(lease, async (tx, current) => {
         const [receipt] = await tx.select().from(cityToolReceipts).where(and(eq(cityToolReceipts.runId, run.id), eq(cityToolReceipts.logicalStepId, name), eq(cityToolReceipts.argumentHash, argumentHash)));
         if (receipt) return receipt;
-        if (current.toolCount >= 8 || (name === "searchPlans" && current.searchCount >= 3)) throw new CityError("INVALID_AI_RESULT", 503);
-        await tx.update(cityRuns).set({ toolCount: current.toolCount + 1, searchCount: current.searchCount + (name === "searchPlans" ? 1 : 0) }).where(eq(cityRuns.id, run.id));
+        const searches = name === 'priceCondition' ? 2 : name === 'searchPlans' ? 1 : 0;
+        if (current.toolCount >= 8 || current.searchCount + searches > 3) throw new CityError("INVALID_AI_RESULT", 503);
+        await tx.update(cityRuns).set({ toolCount: current.toolCount + 1, searchCount: current.searchCount + searches }).where(eq(cityRuns.id, run.id));
         const [created] = await tx.insert(cityToolReceipts).values({ id: randomUUID(), runId: run.id, logicalStepId: name, argumentHash, input, toolName: name, status: "started" }).returning();
         await appendEvent(tx, run.id, { kind: "tool", status: "started", toolName: name, payload: { receiptId: created.id } });
         return created;

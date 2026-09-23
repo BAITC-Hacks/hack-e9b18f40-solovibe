@@ -1,5 +1,5 @@
 # 04 Whole-product integration and original presentation
-Status: not started. Requires03 completed connected suite. This chat delivers04.1–04.2, not the later formal code review or media.
+Status:04.1 independent visual/component work begins alongside02 in the combined02–04 MAIN assignment. Final04.2 requires03 completed connected suite. This chat delivers all eight02–04 blocks and hands off05.1; formal code review and media remain separate.
 Read PROJECT, PLAN, own stage, PRODUCT and design SYSTEM/DIRECTION/UX/COPY/MOTION. Reuse implemented UI primitives and actual outputs; no replacement template or fabricated screenshot. MAIN owns landing routes/global tokens/messages/performance decisions. One independent visual worker may own src/components/landing/ and public/brand/ after exact proof props/tokens; MAIN integrates entry/data/context and whole-suite behavior. User owns browser/UI testing; do not auto-open tabs.
 
 ## 04.1 The advantage is visible in the first five seconds

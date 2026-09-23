@@ -172,6 +172,7 @@ export const citySearches = pgTable("city_searches", {
   inputRevisionId: text("input_revision_id").notNull().references(() => cityRevisions.id, { onDelete: "cascade" }),
   runId: text("run_id").references(() => cityRuns.id, { onDelete: "cascade" }),
   inputHash: text("input_hash").notNull(), result: jsonb("result").$type<SearchResult>().notNull(),
+  baselineResult: jsonb("baseline_result").$type<SearchResult>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, t => [index("city_searches_owner_idx").on(t.ownerId, t.createdAt)]);
 

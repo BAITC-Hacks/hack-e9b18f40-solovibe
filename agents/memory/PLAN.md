@@ -1,6 +1,6 @@
 # CityBalance execution plan
 
-Approved identity: **CityBalance**, **«Решайте, каким станет город.»** Concept, identity and six-capability scope are approved. This is the single executable plan. First-level stages are separate user-opened MAIN chats, second-level blocks are integrated commits, deeper numbered tasks follow dependencies. Implementation is active in stage01; PROJECT and STATE record verified progress.
+Approved identity: **CityBalance**, **«Решайте, каким станет город.»** Concept, identity and six-capability scope are approved. This is the single executable plan. By explicit user assignment, stages02–04 run in one MAIN chat with independent SUBAGENT packages in a shared checkout; stage01 precedes it, stages05 and06 remain separate user-opened chats. Second-level blocks retain their original numbers and are integrated commits. This combined assignment finishes02.1–02.3,03.1–03.3 and04.1–04.2, then hands off to05.1. PROJECT and STATE record verified progress.
 
 ## Depth and visible advantage
 The finite dataset can be solved once by a maximizer; a score dashboard and fluent explanation would be shallow. CityBalance completes a constrained decision: preserve commitments, find feasible substitutions, expose beneficiaries and disadvantages, test a visible assumption, and carry the chosen version into an editable reproducible brief. Better Score is a model outcome, not measured social benefit.
@@ -19,7 +19,7 @@ The complete scope stays connected: board, constrained AI planning, comparison/v
 | [05 Code review and stability](stages/05-stability.md) | Actual integrated review, fixes and verified release | 05.1 review/fix; 05.2 release | 04 |
 | [06 README, video and final delivery](stages/06-final.md) | Russian README, authored video, landing integration | 06.1 README; 06.2 video; 06.3 integration | 05; README before video |
 
-Read this index/contracts, PROJECT and only the assigned stage. MAIN owns shared types/schema/routes/dependencies/translations/Git; lend whole independent feature areas only after contracts exist. Workers follow WORKFLOW packets, never write agents/, mutate Git or delegate. Stage details name useful parallel opportunities, not mandatory agent counts. No additional plan approval or competing plan.
+Read this index/contracts, PROJECT and the assigned stages02–04. Start independent04.1 visual/component work alongside02; start03 packages as their checked02 inputs become ready. Final04.2 integration follows all02/03 functions. MAIN owns shared types/schema/routes/dependencies/translations/Git; lend whole independent feature areas only after contracts exist. Workers follow WORKFLOW packets, never write agents/, mutate Git or delegate. Finish all writers in each checkpoint package. No additional plan approval or competing plan.
 
 ## Shared contracts
 Behavior below is binding; clear internal organization and library choices remain implementer judgment. Exported Zod/types in `src/features/city/contracts.ts` become exact code authority. Proposed paths are creation targets, not claims that code exists.

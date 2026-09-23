@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { Decision, DistrictId, Evaluation } from "../contracts";
 import { AKIM_DATASET } from "../data/akim-v1";
 import { CitySculpture } from "@/components/brand";
+import { EvidencePanel } from "./evidence/EvidencePanel";
 import { cn } from "@/components/ui";
 
 export interface CityBoardProps {
@@ -30,8 +31,8 @@ export function CityBoard({ evaluation, decisions, selectedDistrictId, onSelecte
           <h2 id="city-board-title">{tBoard("board")}</h2>
           <p>{tBoard("boardDescription")}</p>
         </div>
-        <span className={cn("cb-result-kind", evaluation.complete ? "cb-result-official" : "cb-result-draft")}>
-          {evaluation.complete ? tBoard("officialResult") : tBoard("draftResult")}
+        <span className={cn("cb-result-kind", evaluation.valid && evaluation.complete ? "cb-result-official" : "cb-result-draft")}>
+          {evaluation.valid && evaluation.complete ? tBoard("officialResult") : tBoard("draftResult")}
         </span>
       </div>
 
@@ -132,6 +133,7 @@ export function CityBoard({ evaluation, decisions, selectedDistrictId, onSelecte
           );
         })}
       </div>
+      <EvidencePanel evaluation={evaluation} decisions={decisions} districtId={selectedDistrictId} />
     </section>
   );
 }

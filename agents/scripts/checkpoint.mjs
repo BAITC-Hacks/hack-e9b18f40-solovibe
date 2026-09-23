@@ -39,8 +39,15 @@ async function main() {
   const treeBefore = fingerprint();
   await check();
   if (fingerprint() !== treeBefore) throw new Error("Files changed during checks; checkpoint stopped.");
-  await runQuiet("stage", "git", ["add", "-A", "--", ...paths], { printSuccess: false });
-  await runQuiet("commit", "git", ["commit", "--only", "-m", message, "--", ...paths], { printSuccess: false });
+  const removedFromIndex = new Set(execFileSync("git", ["diff", "--cached", "--diff-filter=D", "--name-only", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean));
+  const stagePaths = paths.filter(path => !removedFromIndex.has(path));
+  if (stagePaths.length) await runQuiet("stage", "git", ["add", "-A", "--", ...stagePaths], { printSuccess: false });
+  const staged = execFileSync("git", ["diff", "--cached", "--name-only", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
+  const selected = new Set(execFileSync("git", ["diff", "--cached", "--name-only", "-z", "--", ...paths], { encoding: "utf8" }).split("\0").filter(Boolean));
+  if (staged.some(file => !selected.has(file))) throw new Error("Staged changes outside the selected package; reconcile ownership before committing.");
+  // Commit the checked index. --only reconstructs it from HEAD/worktree and can
+  // re-add a locally retained file intentionally removed with git rm --cached.
+  await runQuiet("commit", "git", ["commit", "-m", message], { printSuccess: false });
   const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
   if (process.env.CHECKPOINT_NO_PUSH === "1") { console.log("checkpoint: committed " + sha + "; push intentionally disabled"); return; }
   try {

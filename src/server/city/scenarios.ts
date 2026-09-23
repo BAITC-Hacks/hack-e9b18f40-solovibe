@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { constraintsSchema, decisionSchema, type Constraints, type Decision, type SearchResult } from "@/features/city/contracts";
+import { constraintsSchema, decisionSchema, type Constraints, type Decision } from "@/features/city/contracts";
+import { PROOF_DECISIONS } from '@/features/city/data/proof-scenarios';
 import { AKIM_DATASET, DEFAULT_CONSTRAINTS, EXAMPLE_DECISIONS } from "@/features/city/data/akim-v1";
 import { canonicalDecisions, evaluate } from "@/features/city/engine";
 import type { EvaluationRecord, RevisionRecord, ScenarioList, ScenarioRecord, ScenarioView } from "@/features/city/records";
@@ -18,24 +19,10 @@ export const createScenarioSchema = z.object({
 export const revisionSchema = z.object({ expectedRevisionId: z.string().uuid(), decisions: z.array(decisionSchema).max(5),
   constraints: constraintsSchema, clientMutationId: z.string().uuid(), intent: z.string().max(2000).optional() }).strict();
 export const titleSchema = z.object({ title: z.string().trim().min(1).max(120) }).strict();
-export const forkSchema = z.object({ clientMutationId: z.string().uuid(), title: z.string().trim().min(1).max(120).optional() }).strict();
+export const forkSchema = z.object({ clientMutationId: z.string().uuid(), title: z.string().trim().min(1).max(120).optional(), revisionId:z.string().uuid().optional() }).strict();
 export const applySchema = z.object({ revisionId: z.string().uuid(), expectedRevisionId: z.string().uuid(), clientMutationId: z.string().uuid() }).strict();
 
 type Executor = CityDb | CityTx;
-const proofCalculations = new Map<string, Promise<SearchResult>>();
-function calculateProof(variant: "best" | "two-districts") {
-  const existing = proofCalculations.get(variant);
-  if (existing) return existing;
-  const computation = import("@/features/city/search").then(({searchPlans}) => searchPlans({
-    datasetVersion: AKIM_DATASET.version, constraints: {...DEFAULT_CONSTRAINTS, minDirectDistricts: variant === "two-districts" ? 2 : 0}, limit: 1,
-  })).then(result => {
-    if (result.status !== "complete" || !result.candidates.length) throw new CityError("PROVIDER_TIMEOUT", 503);
-    return result;
-  }).catch(error => { proofCalculations.delete(variant); throw error; });
-  // Only two immutable public calculations exist; concurrent starts share their actual work.
-  proofCalculations.set(variant, computation);
-  return computation;
-}
 const ownedWhere = (p: Principal, id: string) => and(eq(cityScenarios.id, id), inArray(cityScenarios.ownerId, p.ownerIds), isNull(cityScenarios.deletedAt));
 function scenarioRecord(row: typeof cityScenarios.$inferSelect): ScenarioRecord {
   if (!row.currentRevisionId) throw new CityError("STORAGE_UNAVAILABLE", 503);
@@ -92,11 +79,10 @@ export async function createScenario(p: Principal, input: z.infer<typeof createS
   if (!p.primaryOwnerId) throw new CityError("SESSION_EXPIRED", 401);
   let decisions = preset?.decisions ?? (input.source === "blank" ? [] : EXAMPLE_DECISIONS);
   let constraints = preset?.constraints ?? DEFAULT_CONSTRAINTS;
-  // Proof starts are bounded, exact searches. They never use a prewritten optimum.
+  // Continue precisely the immutable evaluated example shown on the landing page.
   if (input.source === "proof") {
     constraints = { ...DEFAULT_CONSTRAINTS, minDirectDistricts: input.proofVariant === "two-districts" ? 2 : 0 };
-    const search = await calculateProof(input.proofVariant ?? "best");
-    decisions = search.candidates[0].decisions;
+    decisions = PROOF_DECISIONS[input.proofVariant ?? "best"];
   }
   return getDb().transaction(async tx => {
     await tx.select({ id: cityOwners.id }).from(cityOwners).where(eq(cityOwners.id, p.primaryOwnerId!)).for("update");
@@ -148,8 +134,9 @@ export async function deleteScenario(p: Principal, id: string) {
 }
 export async function forkScenario(p: Principal, id: string, input: z.infer<typeof forkSchema>) {
   const source = await getScenario(p, id);
+  const selected = input.revisionId ? await getRevision(p,id,input.revisionId) : source;
   return createScenario(p, { source: "blank", clientMutationId: input.clientMutationId, title: input.title ?? source.scenario.title }, {
-    decisions: source.revision.decisions, constraints: source.revision.constraints, sourceRevisionId: source.revision.id, intent: source.revision.intent,
+    decisions: selected.revision.decisions, constraints: selected.revision.constraints, sourceRevisionId: selected.revision.id, intent: selected.revision.intent,
   });
 }
 export async function applyRevision(p: Principal, id: string, input: z.infer<typeof applySchema>) {

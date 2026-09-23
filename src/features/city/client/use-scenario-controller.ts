@@ -402,6 +402,13 @@ export function useScenarioController(initial: ScenarioView) {
     serverView,
     decisions,
     constraints,
+    setConstraints: (next: Constraints) => {
+      const copy = copyConstraints(next);
+      constraintsRef.current = copy;
+      dirtyRef.current = true;
+      setConstraintsState(copy);
+      scheduleSave();
+    },
     title,
     preview,
     saveStatus,

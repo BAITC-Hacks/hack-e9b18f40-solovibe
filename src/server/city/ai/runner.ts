@@ -11,6 +11,7 @@ import { createCityTools } from './tools';
 import { COMMON_PROCEDURE } from './prompts/common';
 import { PLAN_PROCEDURE } from './prompts/plan';
 import { EXPLAIN_PROCEDURE } from './prompts/explain';
+import { COMPARE_PROCEDURE } from './prompts/compare';
 
 /** Each model call is one adaptive step. Only durable tool artifacts can complete a run. */
 export async function runAnalysis(execution: ToolExecution): Promise<{ status: 'completed' | 'waiting_input'; question?: string }> {
@@ -52,7 +53,7 @@ export async function runAnalysis(execution: ToolExecution): Promise<{ status: '
     if (remainingMs <= 0) throw new CityError('PROVIDER_TIMEOUT', 504);
     const result = await generateText({
       model: getLanguageModel(), providerOptions: { openai: { ...openaiOptions.openai, parallelToolCalls: false } },
-      system: `${COMMON_PROCEDURE}\n${run.procedure === 'plan' ? PLAN_PROCEDURE : EXPLAIN_PROCEDURE}`,
+      system: `${COMMON_PROCEDURE}\n${run.procedure === 'plan' ? PLAN_PROCEDURE : EXPLAIN_PROCEDURE}\n${COMPARE_PROCEDURE}`,
       messages, tools, toolChoice: 'required', maxRetries: 1,
       maxOutputTokens: Math.min(1800, 4000 - outputTokens),
       abortSignal: AbortSignal.any([execution.lease.signal, AbortSignal.timeout(Math.min(60000, remainingMs))]),

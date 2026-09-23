@@ -10,6 +10,7 @@ import { ScenarioControllerProvider } from "../client/scenario-context";
 import { Catalogue, type ChooseResult } from "./Catalogue";
 import { CityBoard } from "./CityBoard";
 import { DecisionTray } from "./DecisionTray";
+import { WorkshopPanel } from './workshop/WorkshopPanel';
 import { Alert, Button, LanguageSelector, SaveState, cn } from "@/components/ui";
 import { Logo } from "@/components/brand";
 import { AccountControl } from "@/components/app/AccountControl";
@@ -238,6 +239,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
           />
           <DecisionTray
             decisions={controller.decisions}
+            constraints={controller.constraints}
             replacementSlot={replacementSlot}
             onReplacementSlotChange={(slot) => {
               setReplacementSlot(slot);
@@ -254,12 +256,15 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
 
         <Catalogue
           decisions={controller.decisions}
+          constraints={controller.constraints}
+          onConstraintsChange={controller.setConstraints}
           replacementSlot={replacementSlot}
           attemptIssues={controller.attemptIssues}
           formatIssue={issueText}
           onChoose={addOrReplace}
           onNeedReplacement={() => setReplacementPrompt(true)}
         />
+        <WorkshopPanel />
         </div>
 
         {assistant ? (
