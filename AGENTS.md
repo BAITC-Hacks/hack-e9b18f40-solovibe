@@ -1,0 +1,39 @@
+# Hackathon workspace
+
+Open this folder as the Codex project. HackAlem is the event; SoloVibe is the team. The future product needs its own approved name. Application code and Git use the workspace root. Knowledge and memory are in agents/, in the same Git repository.
+
+## Role and entry
+The user chooses MAIN's model and reasoning level in the app; do not override that choice. The rough design study in agents/knowledge/design/ supplies principles, not finished product screens. Create an original product identity, logo, landing and visuals with higher polish. Product implementation proceeds through separate user-opened chats, one MAIN per first-level plan stage.
+The startup message assigns MAIN. A delegated task assigns SUBAGENT. Reading this file does not grant MAIN authority. SUBAGENT follows its task packet, reads only named guidance, edits only assigned implementation paths, never writes agents/ or mutates Git, and never creates more agents.
+
+MAIN starts with agents/INDEX.md and agents/memory/STATE.md. Read PROJECT when a product exists and only the active PLAN section when resuming. Continue the original objective after compaction; preserve approval, partial progress and assignments. Inspect named running work before repeating it.
+
+The visual direction is defined in agents/knowledge/design/SYSTEM.md and DIRECTION.md. Build original product compositions, components and dimensional visuals from these text specifications. Implementation stages start and finish with a clean working tree.
+
+## Product and autonomy
+When the case arrives, propose one strong concrete product, a two-word English name joined in PascalCase, a concise slogan, product description and original logo proposal, the real complex problem it solves, its connected feature package and necessary AI/tools. Wait for the user's approval of the concept, identity and scope. Preparation already present is authorized and should be reused.
+After approval, make one detailed executable plan using WORKFLOW.md: first-level stages are separate chats, second-level blocks are commits, deeper steps are concrete tasks. Each implementation chat executes its assigned stage independently and hands off at its boundary. Ask about consequential missing information or a material decision when needed, while continuing other useful work. Routine plans, edits, commits and pushes need no approval.
+
+Deliver an original, ambitious all-in-one product that completes a real multistage job. AI has a central operational role through a product harness: relevant context, actual tools, observed results, durable execution state and usable artifacts/actions. Read agents/knowledge/HARNESS.md when defining that mechanism. A thin prompt wrapper, fabricated outcomes, fake persistence and a single-feature demonstration do not fulfil this brief.
+Build the complete approved suite with clear architecture, readable code, useful error recovery, real saved results, fast response, accessible adaptive layouts and polished UI throughout. Simple entry should make powerful capabilities easy to use.
+Focus on a consequential real-world problem and complete core functionality. Do not implement monetization, paid plans or pricing UI; follow PRODUCT.md for scope and evidence of practical value.
+The first session should deliver a substantial usable result within five minutes with minimal user effort; advanced AI/tools alone are not the value. The landing page must sell concrete outcomes through real proof and a direct starting action, as well as meet the visual contract. Follow agents/knowledge/PRODUCT.md; keep “magic”, “superpowers” and generic AI comparisons out of authored marketing.
+The entire interface supports ru/kk/en with Russian initially and a persistent selector. AI naturally follows the user's request. Final product README is Russian; this knowledge base is English.
+
+## Efficient execution
+Use the prepared knowledge instead of loading skills, skill catalogs or skill-to-skill chains. Useful techniques are already distilled here. Do not invoke Superpowers, repeated planning/review ceremonies or automatic reviewer agents.
+MAIN codes and integrates. Delegate meaningful independent implementation or bulky investigation with fresh context and explicit contracts, paths and acceptance conditions. Small reads and straightforward edits stay local. SUBAGENT cannot delegate further.
+MAIN alone owns memory, dependencies, migrations and Git unless it explicitly lends a code area to one worker. Use one shared checkout with stable whole-file ownership. Apply ownership quietly.
+Implement and verify coherent capabilities. Reuse valid checks while relevant files/dependencies remain unchanged. A compilation proves compilation; a working end-to-end result proves behavior. A first connected slice is an internal milestone, then finish the rest.
+The implementation MAIN uses the checkpoint and manual-deploy scripts documented in STACK.md for completed blocks so each push is deployed. Commit integrated plan milestones, batching minor edits. Code writers must finish their affected package before a shared build or checkpoint. No per-edit builds, new plans, reviews, READMEs or status audits.
+The user owns visual/UI testing, follows the work and normally already has the site open. Do not open or focus a browser/tab automatically, including at completion. Do not add routine ready-block announcements, testing invitations or repeated addresses. Answer requests and report meaningful blockers naturally; keep developing while feedback arrives. Retain static and focused server/domain checks; do not run routine Playwright, screenshot or browser-audit loops.
+The user records issues in agents/TESTING.md. Once testable product UI exists, MAIN checks it at natural integration boundaries, roughly no more often than every 15 minutes of active work unless the user explicitly points to an update. No polling loops, watchers, scheduled messages or startup checks during concept/foundation work. MAIN assigns independent fixes, verifies the returned result and ticks only resolved items, preserving the user's text and concurrent additions. Workers return results to MAIN rather than editing this shared file. Details are in WORKFLOW.md.
+Develop and test locally. After every successful push, run the manual deployment described in agents/ops/SETUP.md and verify the live revision. Preserve the SSH → server source-build pipeline, PostgreSQL and private R2. Public HTTPS uses the configured Brev Secure Link; Nginx passes streaming responses without buffering. Read agents/ops/SETUP.md only for delivery changes; keep unrelated server services intact.
+After the approved suite is implemented and integrated, complete a dedicated code review/stability stage, fix confirmed defects and verify working scenarios. Then write README.md from the verified product and only after the README is complete produce the demo video, using MEDIA.md. Follow WORKFLOW.md.
+
+## Memory and communication
+Maintain Markdown as coherent instructions and current facts. Integrate requirements into the relevant sections; replace obsolete wording and merge duplicates. Do not add update dates, changelogs or appended “latest requirements” blocks.
+
+STATE is the short recovery cursor; PROJECT is durable product facts and feature status; PLAN is the executable plan. Only MAIN writes them, at useful boundaries. Save partial progress inside a long task, not just whole-task completion. Do not write a diary or duplicate source and logs.
+Communicate naturally in Russian about useful results and real blockers. Apply these agreements without announcing what you will not do.
+On "отчет", answer immediately from current knowledge in one short paragraph, often one sentence: what works, what was pushed, what is underway. No new reads, tool calls or audit solely for the report. Then continue.

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+.private/
+*.pem
+*.key
+*.tsbuildinfo
+.checks/
+storage/
+*.log
+video/.hyperframes/

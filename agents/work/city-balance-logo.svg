@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="360" viewBox="0 0 1100 360" role="img" aria-labelledby="title desc">
+  <title id="title">CityBalance: proposed original identity</title>
+  <desc id="desc">Five urban blocks held by one rising foundation. Primary wordmark, monochrome mark and small-size silhouette.</desc>
+  <rect width="1100" height="360" rx="32" fill="#EEF3EF"/>
+  <rect x="24" y="24" width="1052" height="312" rx="26" fill="#FBFDFB"/>
+  <g transform="translate(62 64)">
+    <path d="M8 155V93a12 12 0 0 1 24 0v62z M46 155V57a12 12 0 0 1 24 0v98z M84 155V77a12 12 0 0 1 24 0v78z M122 143V29a12 12 0 0 1 24 0v114z M160 121V61a12 12 0 0 1 24 0v60z" fill="#087F6F"/>
+    <path d="M8 181h69c49 0 83-18 107-48" fill="none" stroke="#183C39" stroke-width="22" stroke-linecap="round"/>
+  </g>
+  <text x="294" y="163" font-family="Onest,Arial,sans-serif" font-size="68" font-weight="600" letter-spacing="-3" fill="#183C39">CityBalance</text>
+  <text x="299" y="207" font-family="Onest,Arial,sans-serif" font-size="20" fill="#5B7069">Решайте, каким станет город.</text>
+  <g transform="translate(908 77) scale(.48)" fill="#183C39">
+    <path d="M8 155V93a12 12 0 0 1 24 0v62z M46 155V57a12 12 0 0 1 24 0v98z M84 155V77a12 12 0 0 1 24 0v78z M122 143V29a12 12 0 0 1 24 0v114z M160 121V61a12 12 0 0 1 24 0v60z"/>
+    <path d="M8 181h69c49 0 83-18 107-48" fill="none" stroke="#183C39" stroke-width="22" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(943 220) scale(.16)" fill="#183C39">
+    <path d="M8 155V93a12 12 0 0 1 24 0v62z M46 155V57a12 12 0 0 1 24 0v98z M84 155V77a12 12 0 0 1 24 0v78z M122 143V29a12 12 0 0 1 24 0v114z M160 121V61a12 12 0 0 1 24 0v60z"/>
+    <path d="M8 181h69c49 0 83-18 107-48" fill="none" stroke="#183C39" stroke-width="22" stroke-linecap="round"/>
+  </g>
+</svg>
