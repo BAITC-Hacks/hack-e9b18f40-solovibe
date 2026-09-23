@@ -10,6 +10,7 @@ import type { JobLease } from "../src/server/city/job-contracts";
 import { processSearchJob } from "../src/server/city/searches";
 import { cityJobs } from "../src/server/db/schema";
 import { and } from "drizzle-orm";
+import {cleanupArtifacts} from '../src/server/city/cleanup';
 
 const workerId = process.env.CITY_WORKER_ID || `native-${randomUUID()}`;
 const shutdown = new AbortController();
@@ -35,11 +36,10 @@ function failureCode(error: unknown, signal: AbortSignal) {
 async function processOne() {
   const job = await claimJob(workerId);
   if (!job) return false;
-  if (job.kind === "retention") { await performRetention(job); return true; }
-  if (!job.ownerId || (job.kind === "analysis" && !job.runId)) return true;
+  if (job.kind!=='retention' && (!job.ownerId || (job.kind === "analysis" && !job.runId))) return true;
   const controller = new AbortController(); running.add(controller);
   const deadline = setTimeout(() => controller.abort(new Error("RUN_DEADLINE")), Math.max(1, job.deadlineAt.getTime() - Date.now()));
-  const lease: JobLease = { id: job.id, runId: job.runId ?? "", ownerId: job.ownerId, token: job.leaseToken, workerId, deadlineAt: job.deadlineAt, signal: controller.signal };
+  const lease: JobLease = { id: job.id, runId: job.runId ?? "", ownerId: job.ownerId??'', token: job.leaseToken, workerId, deadlineAt: job.deadlineAt, signal: controller.signal };
   let renewing = false;
   const renew = setInterval(async () => {
     if (renewing) return; renewing = true;
@@ -48,7 +48,8 @@ async function processOne() {
     finally { renewing = false; }
   }, 10000);
   try {
-    if (job.kind === "search") await processSearchJob(job, controller.signal);
+    if(job.kind==='retention'){await cleanupArtifacts(5);await performRetention(job);}
+    else if (job.kind === "search") await processSearchJob(job, controller.signal);
     else {
       const execution = await createExecution(lease);
       const result = await runAnalysis(execution);
@@ -57,7 +58,7 @@ async function processOne() {
   } catch (error) {
     if (!shutdown.signal.aborted) {
       const code = failureCode(error, controller.signal);
-      if (job.kind === "search") await getDb().update(cityJobs).set({ status: "failed", leaseUntil: null, errorCode: code }).where(and(eq(cityJobs.id, job.id), eq(cityJobs.leaseToken, job.leaseToken), eq(cityJobs.status, "running")));
+      if (job.kind !== "analysis") await getDb().update(cityJobs).set({ status: "failed", leaseUntil: null, errorCode: code }).where(and(eq(cityJobs.id, job.id), eq(cityJobs.leaseToken, job.leaseToken), eq(cityJobs.status, "running")));
       else await failRun(lease, code);
       console.error("city_run_failed", { runId: job.runId, code, name: error instanceof Error ? error.name : "unknown" });
     }

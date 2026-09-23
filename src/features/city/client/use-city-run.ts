@@ -69,7 +69,9 @@ function sortNewest(records: RunRecord[]) {
 
 export interface StartRunOptions {
   objective?: string;
-  procedure?: "plan" | "explain";
+  procedure?: RunRecord['procedure'];
+  context?: RunRecord['context'];
+  inputRevisionId?:string;
   parentRunId?: string;
 }
 
@@ -90,7 +92,7 @@ export function useCityRun() {
   const [views, setViews] = useState<Record<string, RunView>>({});
   const [loadingRunIds, setLoadingRunIds] = useState<Set<string>>(new Set());
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [pendingRequest, setPendingRequest] = useState<{ objective: string; procedure: "plan" | "explain" } | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<{ objective: string; procedure: RunRecord['procedure'] } | null>(null);
   const [problem, setProblem] = useState<RunProblem | null>(null);
   const [applyProblem, setApplyProblem] = useState<ApiProblem | null>(null);
   const [isLoadingConversation, setIsLoadingConversation] = useState(true);
@@ -198,11 +200,11 @@ export function useCityRun() {
       return null;
     }
     const parentRunId = options.parentRunId ?? latestRecord?.id;
-    const signature = JSON.stringify([latest.revision.id, procedure, objective, parentRunId ?? null]);
+    const signature = JSON.stringify([options.inputRevisionId??latest.revision.id, procedure, objective, parentRunId ?? null,options.context]);
     const clientRequestId = requestIdsRef.current.get(signature) ?? uniqueId();
     requestIdsRef.current.set(signature, clientRequestId);
     try {
-      const view = await runRequest((signal) => createRun({ scenarioId, inputRevisionId: latest.revision.id, procedure, objective, locale, clientRequestId, parentRunId }, signal));
+      const view = await runRequest((signal) => createRun({ scenarioId, inputRevisionId: options.inputRevisionId??latest.revision.id, procedure, objective, locale, clientRequestId, parentRunId,context:options.context }, signal));
       requestIdsRef.current.delete(signature);
       updateView(view);
       setDraftState("");

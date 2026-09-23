@@ -1,0 +1,3 @@
+import {z} from 'zod';
+export const createArtifactSchema=z.object({revisionId:z.string().uuid(),briefId:z.string().uuid().optional(),briefVersion:z.number().int().positive().optional(),kind:z.enum(['html','json','csv']),locale:z.enum(['ru','kk','en']).default('ru'),clientMutationId:z.string().uuid()}).strict();
+export interface ArtifactRecord {id:string;scenarioId:string;revisionId:string;briefId:string|null;briefVersion:number|null;kind:'html'|'json'|'csv';locale:'ru'|'kk'|'en';mime:string;size:number|null;sha256:string|null;state:'pending'|'ready'|'failed'|'deleting'|'deleted';errorCode:string|null;createdAt:string;}

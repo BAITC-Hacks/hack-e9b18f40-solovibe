@@ -11,6 +11,8 @@ import { Catalogue, type ChooseResult } from "./Catalogue";
 import { CityBoard } from "./CityBoard";
 import { DecisionTray } from "./DecisionTray";
 import { WorkshopPanel } from './workshop/WorkshopPanel';
+import {StressPanel} from './stress/StressPanel';
+import {DeliveryPanel} from './sharing/DeliveryPanel';
 import { Alert, Button, LanguageSelector, SaveState, cn } from "@/components/ui";
 import { Logo } from "@/components/brand";
 import { AccountControl } from "@/components/app/AccountControl";
@@ -29,6 +31,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
   const tBoard = useTranslations("board");
   const tAssistant = useTranslations("assistant");
   const tMeasures = useTranslations("measures");
+  const tWorkflow=useTranslations('workflow');
   const tDistricts = useTranslations("districts");
   const controller = useScenarioController(initial);
   const router = useRouter();
@@ -265,6 +268,9 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
           onNeedReplacement={() => setReplacementPrompt(true)}
         />
         <WorkshopPanel />
+        <StressPanel />
+        <section className="cb-panel mt-6"><h2>{tWorkflow('delivery')}</h2><p>{tWorkflow('briefIntro')}</p><Link className="inline-flex min-h-11 items-center font-semibold text-accent" href={`/city/${initial.scenario.id}/brief`} onClick={event=>navigate(event,`/city/${initial.scenario.id}/brief`)}>{tWorkflow('brief')}</Link></section>
+        {controller.serverView.evaluation.result.complete&&<DeliveryPanel scenarioId={initial.scenario.id} revisionId={controller.serverView.revision.id}/>}
         </div>
 
         {assistant ? (

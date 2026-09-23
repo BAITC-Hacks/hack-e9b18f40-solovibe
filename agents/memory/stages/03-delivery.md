@@ -1,5 +1,5 @@
 # 03 Decision brief, files and shared team comparison
-Status: pending within the combined02–04 MAIN assignment. Requires checked02 contracts/results and01 durable jobs/ownership; independent packages may start as these inputs become ready. Complete03.1–03.3 then continue final04 integration in this chat. The handoff is05.1 after all eight02–04 blocks.
+Status:03.1–03.3 implemented and integrated; focused DB/storage/privacy checks and live brief passed, checkpoint pending within the combined02–04 MAIN assignment. Requires checked02 contracts/results and01 durable jobs/ownership; independent packages may start as these inputs become ready. Complete03.1–03.3 then continue final04 integration in this chat. The handoff is05.1 after all eight02–04 blocks.
 Read PROJECT, PLAN C1–C9, this stage, integrations STORAGE/AUTH/AI and relevant design/COPY. Existing adapters/services own actual contracts. All blocks inherit C3/C4 rights/CAS/error/state and C7 localization/mobile. MAIN owns schema/dependencies/routes/messages; an independent worker can implement brief renderer/presentation components after structured Brief contract, while MAIN handles persistence/exports. Storage and share permissions stay integrated under MAIN.
 
 ## 03.1 A usable, editable decision brief

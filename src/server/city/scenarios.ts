@@ -11,6 +11,7 @@ import { cityEvaluations, cityJobs, cityOwners, cityRevisions, cityRuns, citySce
 import { appendEvent } from "./events";
 import { CityError } from "./errors";
 import type { Principal } from "./principal";
+import {revokeScenarioArtifacts} from './cleanup';
 
 export const createScenarioSchema = z.object({
   source: z.enum(["example", "blank", "proof"]), proofVariant: z.enum(["best", "two-districts"]).optional(),
@@ -129,6 +130,7 @@ export async function deleteScenario(p: Principal, id: string) {
     await tx.update(cityJobs).set({ status: "cancelled", leaseToken: sql`${cityJobs.leaseToken}+1`, leaseUntil: null })
       .where(and(eq(cityJobs.kind, "search"), inArray(cityJobs.ownerId, p.ownerIds), sql`${cityJobs.input}->>'scenarioId' = ${id}`, inArray(cityJobs.status, ["queued", "running"])));
     await tx.update(cityScenarios).set({ deletedAt: new Date(), updatedAt: new Date() }).where(ownedWhere(p, id));
+    await revokeScenarioArtifacts(id,tx);
   });
   return { deleted: true, id };
 }

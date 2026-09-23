@@ -12,10 +12,12 @@ import { AlternativeCard } from "./AlternativeCard";
 import { RunStatus } from "./RunStatus";
 import { Alert, Button, cn } from "@/components/ui";
 import "../assistant.css";
+import {Link} from '@/i18n/navigation';
 
 function evaluationMap(view: RunView) {
   return new Map<string, EvaluationRecord>([
     [view.source.evaluation.id, view.source.evaluation],
+    ...(view.supplementaryEvaluations??[]).map(e=>[e.id,e] as const),
     ...view.alternatives.map((alternative) => [alternative.evaluation.id, alternative.evaluation] as const),
   ]);
 }
@@ -140,6 +142,7 @@ function ConversationTurnView({
 }: TurnProps) {
   const t = useTranslations("assistant");
   const locale = useLocale();
+  const tw=useTranslations('workflow');
   const view = turn.view;
   const stale = turn.record.inputRevisionId !== currentRevisionId;
   const failed = turn.record.status === "failed" || turn.record.status === "cancelled";
@@ -156,6 +159,7 @@ function ConversationTurnView({
         </footer>
       </div>
       <div className="cba-message cba-message-assistant" aria-label={t("assistantReply")}>
+        {turn.record.context?.briefId&&<Link className="font-semibold text-accent" href={`/city/${turn.record.scenarioId}/brief?briefId=${turn.record.context.briefId}`}>{tw('brief')}</Link>}
         {!view && turn.loading ? <div className="cba-inline-loading"><LoaderCircle className="cba-spin" aria-hidden="true" />{t("loadingReply")}</div> : null}
         {!view && !turn.loading ? <Alert tone="danger"><ErrorText code="NETWORK" /></Alert> : null}
         {view ? (
@@ -227,6 +231,7 @@ export function AssistantPanel({ className }: AssistantPanelProps) {
     void run.start(waiting && latest ? {
       objective: run.draft,
       procedure: latest.run.procedure,
+      context:latest.run.context,inputRevisionId:latest.run.inputRevisionId,
       parentRunId: latest.run.id,
     } : undefined);
   }
@@ -294,7 +299,7 @@ export function AssistantPanel({ className }: AssistantPanelProps) {
             connectionInterrupted={run.connectionInterrupted}
             onReuse={(objective) => { run.setDraft(objective); stickToBottomRef.current = true; }}
             onStop={(runId) => void run.stop(runId)}
-            onRetry={(view) => void run.start({ objective: view.run.objective, procedure: view.run.procedure, parentRunId: view.run.id })}
+            onRetry={(view) => void run.start({ objective: view.run.objective, procedure: view.run.procedure, parentRunId: view.run.id,context:view.run.context,inputRevisionId:view.run.inputRevisionId })}
             onApply={(revisionId) => void run.apply(revisionId)}
           />
         ))}

@@ -1,9 +1,9 @@
 # 02 Complete decision workshop
-Status: active in the combined02–04 MAIN assignment. Requires completed01 and its actual code/contracts/evidence; do not recreate foundations. Finish02.1–02.3 and continue03 in this chat, with independent04.1 work in parallel. The chat boundary is05.1 after all eight02–04 blocks.
+Status:02.1/02.2 delivered0da3fbf;02.3 implemented and verified, checkpoint pending in the combined02–04 MAIN assignment. Requires completed01 and its actual code/contracts/evidence; do not recreate foundations. Finish02.1–02.3 and continue03 in this chat, with independent04.1 work in parallel. The chat boundary is05.1 after all eight02–04 blocks.
 Read PROJECT, PLAN C1–C9, own stage, relevant design/AI guidance. Existing city services/types are authoritative. Inherit C3/C4 owner/CAS/idempotency, C7 ru/kk/en/responsive states, C5 run limits. MAIN owns routes/types/schema/messages; a worker may own evidence views while MAIN implements search comparison, then stress views after contract handoff. No concurrent writers to shared files.
 
 ## 02.1 Evidence that explains each consequence
-Implementation integrated; exact attribution3 tests and workshop PostgreSQL checks passed. Checkpoint pending.
+Implementation integrated; exact attribution3 tests and workshop PostgreSQL checks passed. Delivered0da3fbf.
 Outcome: user can understand and change the five choices, locate a weak indicator, inspect the formula and see the actual source of the change.
 Paths: src/features/city/{evidence.ts,attribution.ts,components/evidence/,components/CityBoard*,components/Catalogue*,components/DecisionTray*}; src/server/city/scenarios.ts; messages/*.json; domain fixtures.
 Inputs/results: current saved revision plus local preview, selected district/measure; no new external data. Evaluation retains all50 values, active synergies, clipping and reference baseline.
@@ -41,6 +41,7 @@ Acceptance: V2/V4 plus changed lock changes candidate/hash; applying branch upda
 Commit: integrated constraints/search/history/comparison.
 
 ## 02.3 Sensitivity experiments and repair
+Implemented: saved experiments/manual repair, fixed assumptions and original locks, separate official/sensitivity provenance, real adaptive AI repair. V5 cost106/null, delay effect, reopened repair cost100, gpt-6-luna4tools/39.4s passed. Connected delivery verified; checkpoint pending.
 Outcome: test a chosen cost/delay risk and obtain a feasible repaired portfolio under the SAME assumptions; save/revisit it with baseline intact.
 Paths: src/features/city/{stress.ts,components/stress/}; src/server/city/{stress.ts,ai/prompts/stress.ts,ai/tools.ts}; /api/city/stress-tests/; schema/migrations/messages; shared fixtures.
 Entities: city_stress_tests {id,ownerId,sourceRevisionId,assumption,baselineEvaluationId,stressedEvaluationId,status,repairRevisionIds}; evaluations kind=sensitivity. Reuse run/search/branch services, do not create another calculator.

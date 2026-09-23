@@ -12,11 +12,14 @@ import { COMMON_PROCEDURE } from './prompts/common';
 import { PLAN_PROCEDURE } from './prompts/plan';
 import { EXPLAIN_PROCEDURE } from './prompts/explain';
 import { COMPARE_PROCEDURE } from './prompts/compare';
+import {runBrief} from './brief-runner';
+import {STRESS_PROCEDURE} from './prompts/stress';
 
 /** Each model call is one adaptive step. Only durable tool artifacts can complete a run. */
 export async function runAnalysis(execution: ToolExecution): Promise<{ status: 'completed' | 'waiting_input'; question?: string }> {
   if (!process.env.OPENAI_API_KEY) throw new CityError('AI_UNAVAILABLE', 503);
   const run = execution.run;
+  if(run.procedure==='brief')return runBrief(execution);
   const source = await loadSource(run);
   const completed = async () => {
     const current = await freshRun(run);
@@ -34,7 +37,7 @@ export async function runAnalysis(execution: ToolExecution): Promise<{ status: '
   const savedObservations = await observations(run);
   const previousTurns = await conversationContext(run);
   const messages: ModelMessage[] = [{ role: 'user', content: JSON.stringify({
-    userRequest: run.objective, fallbackLocale: run.locale, procedure: run.procedure,
+    userRequest: run.objective, fallbackLocale: run.locale, procedure: run.procedure,context:run.context,assumption:source.evaluation.result.assumptions,
     source: { scenarioId: run.scenarioId, revisionId: source.revision.id, decisions: source.revision.decisions,
       requiredConstraints: intentConstraints(source.revision.constraints, run.objective), evaluation: compactEvaluation(source.evaluation.result, source.evaluation.id) },
     catalogue: catalogueForModel, synergies: AKIM_DATASET.synergies,
@@ -53,7 +56,7 @@ export async function runAnalysis(execution: ToolExecution): Promise<{ status: '
     if (remainingMs <= 0) throw new CityError('PROVIDER_TIMEOUT', 504);
     const result = await generateText({
       model: getLanguageModel(), providerOptions: { openai: { ...openaiOptions.openai, parallelToolCalls: false } },
-      system: `${COMMON_PROCEDURE}\n${run.procedure === 'plan' ? PLAN_PROCEDURE : EXPLAIN_PROCEDURE}\n${COMPARE_PROCEDURE}`,
+      system: `${COMMON_PROCEDURE}\n${run.procedure === 'plan' ? PLAN_PROCEDURE : EXPLAIN_PROCEDURE}\n${COMPARE_PROCEDURE}\n${run.context.stressId?STRESS_PROCEDURE:''}`,
       messages, tools, toolChoice: 'required', maxRetries: 1,
       maxOutputTokens: Math.min(1800, 4000 - outputTokens),
       abortSignal: AbortSignal.any([execution.lease.signal, AbortSignal.timeout(Math.min(60000, remainingMs))]),

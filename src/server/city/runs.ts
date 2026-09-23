@@ -3,7 +3,10 @@ import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { createRunSchema, type RunRecord, type RunView, type RunEvent } from "@/features/city/ai-contracts";
 import { getDb, type CityDb, type CityTx } from "@/server/db/core";
-import { cityAnalyses, cityJobs, cityOwners, cityRunEvents, cityRuns } from "@/server/db/schema";
+import { cityAnalyses, cityJobs, cityOwners, cityRunEvents, cityRuns,cityBriefs } from "@/server/db/schema";
+import { getStress } from './stress';
+import {evaluate} from '@/features/city/engine';
+import {AKIM_DATASET} from '@/features/city/data/akim-v1';
 import type { Principal } from "./principal";
 import { getRevision, requireScenario } from "./scenarios";
 import { CityError } from "./errors";
@@ -11,7 +14,7 @@ import { appendEvent } from "./events";
 import { anonymousNetworkKey, consumeRate } from "./limits";
 
 export function runRecord(row: typeof cityRuns.$inferSelect): RunRecord {
-  return { id: row.id, scenarioId: row.scenarioId, inputRevisionId: row.inputRevisionId, parentRunId: row.parentRunId, procedure: row.procedure, objective: row.objective, locale: row.locale,
+  return { id: row.id, scenarioId: row.scenarioId, inputRevisionId: row.inputRevisionId, parentRunId: row.parentRunId, procedure: row.procedure, objective: row.objective, locale: row.locale,context:row.context,
     status: row.status, errorCode: row.errorCode, question: row.question, analysisId: row.analysisId, alternativeRevisionIds: row.alternativeRevisionIds, usage: row.usage, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 export async function requireRun(p: Principal, id: string, db: CityDb | CityTx = getDb()) {
@@ -33,7 +36,10 @@ export async function getRun(p: Principal, id: string): Promise<RunView> {
     Promise.all(row.alternativeRevisionIds.map(revisionId => getRevision(p, row.scenarioId, revisionId))),
   ]);
   const analysis = analyses[0];
-  return { run: runRecord(row), source, events, alternatives, stale: scenario.currentRevisionId !== row.inputRevisionId,
+  const supplementaryEvaluations:import('@/features/city/records').EvaluationRecord[]=[];
+  if(row.context.stressId){const stress=await getStress(p,row.context.stressId);source.evaluation={id:`stress:${stress.experiment.id}:stressed`,revisionId:source.revision.id,result:stress.experiment.stressed};for(const alt of alternatives)alt.evaluation={id:`stress:${stress.experiment.id}:repair:${alt.revision.id}`,revisionId:alt.revision.id,result:evaluate(AKIM_DATASET,alt.revision.decisions,stress.experiment.assumption)};}
+  if(row.context.stressId){const s=await getStress(p,row.context.stressId);supplementaryEvaluations.push({id:`stress:${s.experiment.id}:baseline`,revisionId:row.inputRevisionId,result:s.experiment.baseline});}
+  return { run: runRecord(row), source, events, alternatives,supplementaryEvaluations, stale: scenario.currentRevisionId !== row.inputRevisionId,
     analysis: analysis ? { id: analysis.id, runId: id, sourceRevisionId: analysis.sourceRevisionId, document: analysis.document, createdAt: analysis.createdAt.toISOString() } : null };
 }
 export async function listRuns(p: Principal, scenarioId: string, before?: string) {
@@ -48,7 +54,14 @@ export async function listRuns(p: Principal, scenarioId: string, before?: string
   const items = rows.slice(0, 20);
   return { items: items.map(runRecord), nextCursor: rows.length > 20 ? items.at(-1)!.id : null };
 }
-export async function createRun(p: Principal, input: z.infer<typeof createRunSchema>, network: string) {
+export async function createRun(p: Principal, raw: z.input<typeof createRunSchema>, network: string) {
+  const input=createRunSchema.parse(raw);
+  if(input.context.stressId){const s=await getStress(p,input.context.stressId);if(s.experiment.scenarioId!==input.scenarioId||s.experiment.sourceRevisionId!==input.inputRevisionId)throw new CityError('INVALID_REQUEST');}
+  if(input.procedure==='brief'){
+    const [brief]=await getDb().select().from(cityBriefs).where(and(eq(cityBriefs.id,input.context.briefId??''),inArray(cityBriefs.ownerId,p.ownerIds)));
+    if(!brief||brief.scenarioId!==input.scenarioId||brief.sourceRevisionId!==input.inputRevisionId)throw new CityError('NOT_FOUND',404);
+    if(brief.version!==input.context.briefVersion)throw new CityError('STALE_BRIEF',409);
+  }else if(input.context.briefId)throw new CityError('INVALID_REQUEST');
   const id = await getDb().transaction(async tx => {
     const scenario = await requireScenario(p, input.scenarioId, tx, true);
     const [owner] = await tx.select().from(cityOwners).where(eq(cityOwners.id, scenario.ownerId));
@@ -56,7 +69,7 @@ export async function createRun(p: Principal, input: z.infer<typeof createRunSch
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${quotaKey}))`);
     const [duplicate] = await tx.select().from(cityRuns).where(and(eq(cityRuns.ownerId, scenario.ownerId), eq(cityRuns.clientRequestId, input.clientRequestId)));
     if (duplicate) return duplicate.id;
-    if (scenario.currentRevisionId !== input.inputRevisionId) throw new CityError("STALE_REVISION", 409);
+    if (!input.context.stressId && input.procedure!=='brief' && scenario.currentRevisionId !== input.inputRevisionId) throw new CityError("STALE_REVISION", 409);
     if (input.parentRunId) {
       const parent = await requireRun(p, input.parentRunId, tx);
       if (parent.scenarioId !== scenario.id) throw new CityError("NOT_FOUND", 404);
@@ -68,8 +81,8 @@ export async function createRun(p: Principal, input: z.infer<typeof createRunSch
     const runId = randomUUID(); const configured = !!process.env.OPENAI_API_KEY?.trim();
     const deadlineAt = new Date(Date.now() + 120000);
     await tx.insert(cityRuns).values({ id: runId, ownerId: scenario.ownerId, quotaKey, scenarioId: scenario.id, inputRevisionId: input.inputRevisionId, parentRunId: input.parentRunId,
-      procedure: input.procedure, objective: input.objective, locale: input.locale, clientRequestId: input.clientRequestId,
-      inputHash: createHash("sha256").update(JSON.stringify([input.inputRevisionId, input.procedure, input.objective])).digest("hex"),
+      procedure: input.procedure, objective: input.objective, locale: input.locale, clientRequestId: input.clientRequestId,context:input.context,
+      inputHash: createHash("sha256").update(JSON.stringify([input.inputRevisionId, input.procedure, input.objective,input.context])).digest("hex"),
       status: configured ? "queued" : "failed", errorCode: configured ? null : "AI_UNAVAILABLE", deadlineAt });
     await appendEvent(tx, runId, { kind: "status", status: configured ? "queued" : "failed", payload: configured ? {} : { code: "AI_UNAVAILABLE" } });
     if (configured) await tx.insert(cityJobs).values({ id: randomUUID(), kind: "analysis", runId, ownerId: scenario.ownerId, quotaKey, deadlineAt });

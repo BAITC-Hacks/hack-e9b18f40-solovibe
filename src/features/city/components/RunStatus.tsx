@@ -20,6 +20,7 @@ const toolKeys: Record<string, string> = {
   comparePlans: 'toolComparePlans',
   priceCondition: 'toolPriceCondition',
   applyAlternative: 'toolApplyAlternative',
+  stressTest:'toolStressTest',repairStress:'toolRepairStress',readBrief:'toolReadBrief',writeBrief:'toolWriteBrief',updateBrief:'toolUpdateBrief',
   readEvidence: "toolReadEvidence",
   validatePlan: "toolValidatePlan",
   simulatePlan: "toolSimulatePlan",

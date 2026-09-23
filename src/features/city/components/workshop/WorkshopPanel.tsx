@@ -134,7 +134,7 @@ export function WorkshopPanel() {
         if (!mounted.current)
             return;
         const before = fingerprint(latest.current);
-        if (latest.current.isDirty) {
+        if (latest.current.isDirty || latest.current.serverView.revision.id!==saved.revision.id) {
             setProblem(t("saveFirst"));
             return;
         }

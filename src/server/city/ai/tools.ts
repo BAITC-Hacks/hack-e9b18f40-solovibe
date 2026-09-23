@@ -3,7 +3,7 @@ import { tool } from 'ai';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { analysisDocumentSchema, type AnalysisDocument } from '@/features/city/ai-contracts';
-import { constraintsSchema, decisionSchema } from '@/features/city/contracts';
+import { constraintsSchema, decisionSchema,stressAssumptionSchema } from '@/features/city/contracts';
 import { AKIM_DATASET, DEFAULT_CONSTRAINTS } from '@/features/city/data/akim-v1';
 import { evaluate, validateDecisions } from '@/features/city/engine';
 import { readEvidence } from '@/features/city/evidence';
@@ -11,11 +11,12 @@ import { getAttribution } from '@/features/city/attribution';
 import { comparePlans } from '../comparisons';
 import { searchPlans as exactSearch } from '@/features/city/search';
 import { getDb, type CityTx } from '@/server/db/core';
-import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, cityScenarios, citySearches } from '@/server/db/schema';
+import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, cityScenarios, citySearches,cityStressTests } from '@/server/db/schema';
+import {createStress,getStress} from '../stress';
 import type { ToolExecution } from '../job-contracts';
 import { CityError } from '../errors';
 import { getRevision, insertRevision, requireScenario } from '../scenarios';
-import { catalogueForModel, compactEvaluation, compactSearch, failedAnalysisAttempts, freshRun, hardConditionIssues, intentConstraints, loadEvaluation, loadSearch, loadSource, observations } from './context';
+import { catalogueForModel, compactEvaluation, compactSearch, failedAnalysisAttempts, freshRun, hardConditionIssues, intentConstraints, loadEvaluation, loadSearch, loadSource, observations,stressForRun,evaluationForRun } from './context';
 import { checkAnalysis, type QualityContext } from './quality';
 
 type ToolResult<T> = { ok: true; value: T } | { ok: false; code: string; issues?: unknown };
@@ -44,6 +45,7 @@ export function createCityTools(execution: ToolExecution) {
     const source = await loadSource(run);
     const requiredConstraints = intentConstraints(source.revision.constraints, run.objective);
     const evaluations = new Map([[source.evaluation.id, source.evaluation]]);
+    const stress=await stressForRun(run);if(stress)evaluations.set(`stress:${stress.id}:baseline`,{id:`stress:${stress.id}:baseline`,revisionId:run.inputRevisionId,result:stress.baseline});
     let candidate: QualityContext['candidate'];
     if (document.candidateRevisionId) {
       const current = await freshRun(run);
@@ -56,15 +58,17 @@ export function createCityTools(execution: ToolExecution) {
         .innerJoin(cityEvaluations, eq(cityEvaluations.revisionId, cityRevisions.id))
         .where(and(eq(cityRevisions.id, document.candidateRevisionId), eq(cityRevisions.scenarioId, run.scenarioId), eq(cityRevisions.sourceRevisionId, run.inputRevisionId)));
       if (!row) throw new CityError('UNKNOWN_CANDIDATE');
-      candidate = { revision: { ...row.revision, createdAt: row.revision.createdAt.toISOString() }, evaluation: row.evaluation };
-      evaluations.set(row.evaluation.id, row.evaluation);
+      candidate = { revision: { ...row.revision, createdAt: row.revision.createdAt.toISOString() }, evaluation: await evaluationForRun(run,row.evaluation) };
+      evaluations.set(candidate.evaluation.id, candidate.evaluation);
     }
     // Only the exact source and selected own-run candidate can support this document.
     const search = document.searchId ? await loadSearch(run, document.searchId) : undefined;
     if (search && hardConditionIssues(requiredConstraints, search.result.constraints).length) throw new CityError('RELAXED_HARD_CONDITION');
-    return { procedure: run.procedure, source, candidate, search, requiredConstraints, evaluations };
+    return { procedure: run.procedure==='plan'?'plan':'explain', source, candidate, search, requiredConstraints, evaluations };
   }
   return {
+    stressTest:tool({strict:false,description:'Inspect the run-bound sensitivity experiment, or save a requested cost/delay experiment on a selected source measure. Returns real baseline and stressed results; over-budget has no valid Score. Binds subsequent repair/search to exactly this assumption.',inputSchema:z.object({sourceRevisionId:z.string().uuid(),assumption:stressAssumptionSchema}).strict(),execute:input=>perform('stressTest',input,async()=>{if(input.sourceRevisionId!==run.inputRevisionId)throw new CityError('NOT_FOUND',404);await loadSource(run);const existing=await stressForRun(run);if(existing&&(existing.assumption.measureId!==input.assumption.measureId||existing.assumption.costIncreasePct!==input.assumption.costIncreasePct||existing.assumption.extraLagQuarters!==input.assumption.extraLagQuarters))throw new CityError('INVALID_REQUEST');return existing;},async(tx,existing)=>{const p={ownerIds:[run.ownerId],primaryOwnerId:run.ownerId,userId:null,kind:'guest' as const};const s=existing??await createStress(p,{sourceRevisionId:run.inputRevisionId,...input.assumption,clientMutationId:`run:${run.id}`},tx);run.context={...run.context,stressId:s.id};await tx.update(cityRuns).set({context:run.context}).where(eq(cityRuns.id,run.id));return {stressId:s.id,assumption:s.assumption,baseline:compactEvaluation(s.baseline,`stress:${s.id}:baseline`),stressed:compactEvaluation(s.stressed,`stress:${s.id}:stressed`)};})}),
+    repairStress:tool({strict:false,description:'Search feasible repairs under the exact saved sensitivity assumption and original commitments. Returns a saved search ID for saveAlternative. Never replaces the source or removes locks silently.',inputSchema:z.object({stressId:z.string().uuid(),constraints:constraintsSchema}).strict(),execute:input=>perform('repairStress',input,async()=>{const p={ownerIds:[run.ownerId],primaryOwnerId:run.ownerId,userId:null,kind:'guest' as const},s=await getStress(p,input.stressId);if(s.experiment.sourceRevisionId!==run.inputRevisionId||s.experiment.scenarioId!==run.scenarioId||run.context.stressId!==input.stressId)throw new CityError('NOT_FOUND',404);const source=await loadSource(run);if(hardConditionIssues(intentConstraints(source.revision.constraints,run.objective),input.constraints).length)throw new CityError('RELAXED_HARD_CONDITION');const result=await exactSearch({datasetVersion:AKIM_DATASET.version,constraints:input.constraints,assumptions:s.experiment.assumption,limit:3,signal:execution.lease.signal});return {id:randomUUID(),result};},async(tx,prepared)=>{await tx.insert(citySearches).values({id:prepared.id,ownerId:run.ownerId,scenarioId:run.scenarioId,inputRevisionId:run.inputRevisionId,runId:run.id,inputHash:prepared.result.inputHash,result:prepared.result});return {searchId:prepared.id,...compactSearch(prepared.result)};})}),
     priceCondition:tool({strict:false,description:'Run two exact searches for the price of ONE added condition, holding every other condition/objective fixed. Baseline explicitly removes only the named condition; it is a diagnostic comparison, never authorization to relax the actual plan. A Score optimality gap requires both exhaustive maxScore results.',
       inputSchema:z.object({sourceRevisionId:z.string().uuid(),constraints:constraintsSchema,changedConstraint:z.enum(['minDirectDistricts','maxCriticalPairs','maxSpend','requiredDirections','locked','excludedMeasureIds','districtFloors','indicatorFloors'])}).strict(),
       execute:input=>perform('priceCondition',input,async()=>{if(input.sourceRevisionId!==run.inputRevisionId)throw new CityError('NOT_FOUND',404);const source=await loadSource(run);if(hardConditionIssues(intentConstraints(source.revision.constraints,run.objective),input.constraints).length)throw new CityError('RELAXED_HARD_CONDITION');
@@ -94,7 +98,7 @@ export function createCityTools(execution: ToolExecution) {
     readEvidence: tool({
       strict: false,
       description: 'Read at most twenty exact numeric evidence nodes from the source evaluation or an alternative saved by this run. IDs come from actual tool results. Unknown/cross-owner or unrelated evaluation IDs fail. Returned numbers supply references for analysis, never prose calculations.',
-      inputSchema: z.object({ evaluationId: z.string().uuid(), refs: z.array(z.string().max(300)).min(1).max(20) }).strict(),
+      inputSchema: z.object({ evaluationId: z.string().min(1).max(160), refs: z.array(z.string().max(300)).min(1).max(20) }).strict(),
       execute: input => perform('readEvidence', input, async () => {
         const evaluation = await loadEvaluation(run, input.evaluationId);
         try { return { evaluationId: evaluation.id, evidence: readEvidence(evaluation.result, input.refs) }; }
@@ -105,14 +109,14 @@ export function createCityTools(execution: ToolExecution) {
       strict: false,
       description: 'Validate an exact proposed selection under source rules; returns reasons, cost and completeness. Drafts are permitted but have no official Score. Does not save or replace the user plan.',
       inputSchema: decisionsInput,
-      execute: input => perform('validatePlan', input, async () => { await loadSource(run); return validateDecisions(AKIM_DATASET, input.decisions); }),
+      execute: input => perform('validatePlan', input, async () => { await loadSource(run); return validateDecisions(AKIM_DATASET, input.decisions,(await stressForRun(run))?.assumption); }),
     }),
     simulatePlan: tool({
       strict: false,
       description: 'Calculate a legal complete five-measure proposal without persisting it. Returns compact outcomes. Ephemeral evidence has no evaluationId and cannot be cited in saved analysis; use a saved search candidate and saveAlternative for durable evidence.',
       inputSchema: decisionsInput,
       execute: input => perform('simulatePlan', input, async () => {
-        await loadSource(run); const result = evaluate(AKIM_DATASET, input.decisions);
+        await loadSource(run); const result = evaluate(AKIM_DATASET, input.decisions,(await stressForRun(run))?.assumption);
         if (!result.valid || !result.complete) throw new CityError('INVALID_PLAN', 400, result.issues);
         return compactEvaluation(result);
       }),
@@ -125,7 +129,8 @@ export function createCityTools(execution: ToolExecution) {
         const source = await loadSource(run), required = intentConstraints(source.revision.constraints, run.objective);
         const issues = hardConditionIssues(required, input.constraints);
         if (issues.length) throw new CityError('RELAXED_HARD_CONDITION', 400, issues.map(code => ({ code, params: {} })));
-        const result = await exactSearch({ datasetVersion: AKIM_DATASET.version, constraints: input.constraints, limit: input.limit,
+        const stress=await stressForRun(run);
+        const result = await exactSearch({ datasetVersion: AKIM_DATASET.version, constraints: input.constraints, assumptions:stress?.assumption,limit: input.limit,
           signal: execution.lease.signal, deadlineMs: Math.max(0, Math.min(15000, execution.lease.deadlineAt.getTime() - Date.now() - 1000)) });
         return { id: randomUUID(), result };
       }, async (tx, prepared) => {
@@ -144,7 +149,8 @@ export function createCityTools(execution: ToolExecution) {
         const required = intentConstraints(source.revision.constraints, run.objective);
         if (hardConditionIssues(required, search.result.constraints).length) throw new CityError('RELAXED_HARD_CONDITION');
         if (required.locked.some(l => !candidate.decisions.some(d => d.measureId === l.measureId && d.districtId === l.districtId))) throw new CityError('LOST_LOCK');
-        const checked = evaluate(AKIM_DATASET, candidate.decisions);
+        const stress=await stressForRun(run);
+        const checked = evaluate(AKIM_DATASET, candidate.decisions,stress?.assumption);
         if (!checked.valid || !checked.complete || checked.score !== candidate.evaluation.score || checked.sourceHash !== candidate.evaluation.sourceHash) throw new CityError('INVALID_PLAN');
         return { source, search, candidate };
       }, async (tx, prepared) => {
@@ -157,8 +163,11 @@ export function createCityTools(execution: ToolExecution) {
           sourceRevisionId: run.inputRevisionId, title: input.title, intent: run.objective });
         const current = await freshRun(run, tx);
         await tx.update(cityRuns).set({ alternativeRevisionIds: [...new Set([...current.alternativeRevisionIds, saved.revision.id])], updatedAt: new Date() }).where(eq(cityRuns.id, run.id));
-        const before = prepared.source.evaluation.result, after = saved.evaluation.result;
-        return { revisionId: saved.revision.id, searchId: input.searchId, evaluation: compactEvaluation(after, saved.evaluation.id),
+        const stress=await stressForRun(run,tx);
+        if(stress)await tx.update(cityStressTests).set({repairRevisionIds:[...new Set([...stress.repairRevisionIds,saved.revision.id])]}).where(eq(cityStressTests.id,stress.id));
+        const evaluated=await evaluationForRun(run,saved.evaluation,tx);
+        const before = prepared.source.evaluation.result, after = evaluated.result;
+        return { revisionId: saved.revision.id, searchId: input.searchId, evaluation: compactEvaluation(after, evaluated.id),
           sourceEvaluationId: prepared.source.evaluation.id,
           comparison: { scoreDelta: before.score === null || after.score === null ? null : after.score - before.score, costDelta: after.cost - before.cost,
             unchanged: after.decisions.filter(d => before.decisions.some(b => b.measureId === d.measureId && b.districtId === d.districtId)),

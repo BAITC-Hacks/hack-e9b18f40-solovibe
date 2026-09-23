@@ -3,12 +3,22 @@ import type { Constraints, Decision, Evaluation, SearchResult } from '@/features
 import type { EvaluationRecord, RevisionRecord } from '@/features/city/records';
 import { AKIM_DATASET } from '@/features/city/data/akim-v1';
 import { getDb, type CityTx } from '@/server/db/core';
-import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, cityScenarios, citySearches, cityToolReceipts } from '@/server/db/schema';
+import { cityAnalyses, cityEvaluations, cityRevisions, cityRuns, cityScenarios, citySearches, cityToolReceipts,cityStressTests } from '@/server/db/schema';
+import {evaluate} from '@/features/city/engine';
 import type { StoredRun } from '../job-contracts';
 import { CityError } from '../errors';
 
 export interface SourceContext { revision: RevisionRecord; evaluation: EvaluationRecord }
 type Reader = ReturnType<typeof getDb> | CityTx;
+export async function stressForRun(run:StoredRun,db:Reader=getDb()) {
+  if(!run.context.stressId)return null;
+  const [stress]=await db.select().from(cityStressTests).where(and(eq(cityStressTests.id,run.context.stressId),eq(cityStressTests.ownerId,run.ownerId),eq(cityStressTests.sourceRevisionId,run.inputRevisionId),eq(cityStressTests.scenarioId,run.scenarioId)));
+  if(!stress)throw new CityError('NOT_FOUND',404);return stress;
+}
+export async function evaluationForRun(run:StoredRun,record:EvaluationRecord,db:Reader=getDb()):Promise<EvaluationRecord>{
+  const s=await stressForRun(run,db);if(!s)return record;
+  return {id:`stress:${s.id}:${record.revisionId===run.inputRevisionId?'stressed':`repair:${record.revisionId}`}`,revisionId:record.revisionId,result:record.revisionId===run.inputRevisionId?s.stressed:evaluate(AKIM_DATASET,record.result.decisions,s.assumption)};
+}
 export async function loadSource(run: StoredRun, db: Reader = getDb()): Promise<SourceContext> {
   const [row] = await db.select({ revision: cityRevisions, evaluation: cityEvaluations }).from(cityScenarios)
     .innerJoin(cityRevisions, and(eq(cityRevisions.scenarioId, cityScenarios.id), eq(cityRevisions.id, run.inputRevisionId)))
@@ -16,7 +26,7 @@ export async function loadSource(run: StoredRun, db: Reader = getDb()): Promise<
     .where(and(eq(cityScenarios.id, run.scenarioId), eq(cityScenarios.ownerId, run.ownerId), isNull(cityScenarios.deletedAt)));
   if (!row) throw new CityError('NOT_FOUND', 404);
   if (row.evaluation.result.datasetVersion !== AKIM_DATASET.version || row.evaluation.result.sourceHash !== AKIM_DATASET.sourceHash || row.evaluation.result.evaluatorVersion !== AKIM_DATASET.evaluatorVersion) throw new CityError('STALE_EVIDENCE');
-  return { revision: { ...row.revision, createdAt: row.revision.createdAt.toISOString() }, evaluation: row.evaluation };
+  return { revision: { ...row.revision, createdAt: row.revision.createdAt.toISOString() }, evaluation: await evaluationForRun(run,row.evaluation,db) };
 }
 export async function freshRun(run: StoredRun, db: Reader = getDb()) {
   const [row] = await db.select().from(cityRuns).where(and(eq(cityRuns.id, run.id), eq(cityRuns.ownerId, run.ownerId)));
@@ -26,13 +36,14 @@ export async function freshRun(run: StoredRun, db: Reader = getDb()) {
 export async function loadEvaluation(run: StoredRun, evaluationId: string, db: Reader = getDb()): Promise<EvaluationRecord> {
   const source = await loadSource(run, db);
   if (source.evaluation.id === evaluationId) return source.evaluation;
+  const stress=await stressForRun(run,db);if(stress&&evaluationId===`stress:${stress.id}:baseline`)return {id:evaluationId,revisionId:run.inputRevisionId,result:stress.baseline};
   const current = await freshRun(run, db);
   if (!current.alternativeRevisionIds.length) throw new CityError('UNKNOWN_EVIDENCE');
   const [row] = await db.select({ evaluation: cityEvaluations }).from(cityEvaluations)
     .innerJoin(cityRevisions, eq(cityRevisions.id, cityEvaluations.revisionId))
-    .where(and(eq(cityEvaluations.id, evaluationId), inArray(cityRevisions.id, current.alternativeRevisionIds), eq(cityRevisions.scenarioId, run.scenarioId), eq(cityRevisions.sourceRevisionId, run.inputRevisionId)));
+    .where(and(run.context.stressId?eq(cityRevisions.id,evaluationId.split(':repair:')[1]??''):eq(cityEvaluations.id, evaluationId), inArray(cityRevisions.id, current.alternativeRevisionIds), eq(cityRevisions.scenarioId, run.scenarioId), eq(cityRevisions.sourceRevisionId, run.inputRevisionId)));
   if (!row) throw new CityError('UNKNOWN_EVIDENCE');
-  return row.evaluation;
+  const result=await evaluationForRun(run,row.evaluation,db);if(result.id!==evaluationId)throw new CityError('UNKNOWN_EVIDENCE');return result;
 }
 export async function loadSearch(run: StoredRun, searchId: string, db: Reader = getDb()) {
   await loadSource(run, db);
@@ -63,7 +74,7 @@ export async function conversationContext(run: StoredRun) {
   return turns.reverse();
 }
 export function compactEvaluation(e: Evaluation, evaluationId?: string) {
-  return { evaluationId, kind: e.kind, score: e.score, cost: e.cost, remaining: e.remaining, issues: e.issues,
+  return { evaluationId, kind: e.kind, assumptions:e.assumptions,score: e.score, cost: e.cost, remaining: e.remaining, issues: e.issues,
     populationMean: e.populationMean, minimumDistrictScore: e.minimumDistrictScore, criticalPairs: e.criticalPairs,
     directionCounts: e.directionCounts, directDistrictIds: e.directDistrictIds,
     districts: e.districts.map(d => ({ districtId: d.districtId, score: d.score, evidenceId: d.evidenceId, changedIndicators: d.indicators.filter(i => i.delta !== 0) })),

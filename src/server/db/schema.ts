@@ -1,7 +1,11 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Constraints, Decision, Evaluation } from "@/features/city/contracts";
 import type { SearchResult } from "@/features/city/contracts";
-import type { AnalysisDocument, RunStatus, RunEvent, SearchJobInput } from "@/features/city/ai-contracts";
+import type { AnalysisDocument, RunStatus, RunEvent, SearchJobInput,RunContext } from "@/features/city/ai-contracts";
+import type {StressAssumption} from '@/features/city/contracts';
+import type {BriefRecord} from '@/features/city/brief/contracts';
+import type {ArtifactRecord} from '@/features/city/artifact-contracts';
+import type {PublicSnapshot} from '@/features/city/sharing-contracts';
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -109,7 +113,8 @@ export const cityRuns = pgTable("city_runs", {
   scenarioId: text("scenario_id").notNull().references(() => cityScenarios.id, { onDelete: "cascade" }),
   inputRevisionId: text("input_revision_id").notNull().references(() => cityRevisions.id, { onDelete: "cascade" }),
   parentRunId: text("parent_run_id"),
-  procedure: text("procedure").$type<"plan" | "explain">().notNull(),
+  procedure: text("procedure").$type<"plan" | "explain" | "brief">().notNull(),
+  context:jsonb('context').$type<RunContext>().notNull().default({}),
   objective: text("objective").notNull(),
   locale: text("locale").$type<"ru" | "kk" | "en">().notNull(),
   inputHash: text("input_hash").notNull(),
@@ -189,3 +194,19 @@ export const cityRateWindows = pgTable("city_rate_windows", {
 export const cityWorkerHeartbeats = pgTable("city_worker_heartbeats", {
   id: text("id").primaryKey(), revision: text("revision").notNull(), seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const cityStressTests=pgTable('city_stress_tests',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>cityOwners.id,{onDelete:'cascade'}),scenarioId:text('scenario_id').notNull().references(()=>cityScenarios.id,{onDelete:'cascade'}),sourceRevisionId:text('source_revision_id').notNull().references(()=>cityRevisions.id),assumption:jsonb('assumption').$type<StressAssumption>().notNull(),baseline:jsonb('baseline').$type<Evaluation>().notNull(),stressed:jsonb('stressed').$type<Evaluation>().notNull(),repairRevisionIds:jsonb('repair_revision_ids').$type<string[]>().notNull().default([]),clientMutationId:text('client_mutation_id').notNull(),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[uniqueIndex('city_stress_mutation_unique').on(t.ownerId,t.clientMutationId),index('city_stress_scenario_idx').on(t.scenarioId,t.createdAt)]);
+export const cityBriefs=pgTable('city_briefs',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>cityOwners.id,{onDelete:'cascade'}),scenarioId:text('scenario_id').notNull().references(()=>cityScenarios.id,{onDelete:'cascade'}),sourceRevisionId:text('source_revision_id').notNull().references(()=>cityRevisions.id),version:integer('version').notNull(),content:jsonb('content').$type<BriefRecord>().notNull(),clientMutationId:text('client_mutation_id').notNull(),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[uniqueIndex('city_brief_mutation_unique').on(t.ownerId,t.clientMutationId),index('city_brief_scenario_idx').on(t.scenarioId,t.updatedAt)]);
+export const cityBriefVersions=pgTable('city_brief_versions',{
+ id:text('id').primaryKey(),briefId:text('brief_id').notNull().references(()=>cityBriefs.id,{onDelete:'cascade'}),version:integer('version').notNull(),content:jsonb('content').$type<BriefRecord>().notNull(),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[uniqueIndex('city_brief_version_unique').on(t.briefId,t.version)]);
+export const cityArtifacts=pgTable('city_artifacts',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>cityOwners.id),scenarioId:text('scenario_id').notNull().references(()=>cityScenarios.id),revisionId:text('revision_id').notNull().references(()=>cityRevisions.id),briefId:text('brief_id').references(()=>cityBriefs.id),briefVersion:integer('brief_version'),kind:text('kind').$type<ArtifactRecord['kind']>().notNull(),locale:text('locale').$type<ArtifactRecord['locale']>().notNull(),backend:text('backend').$type<'local'|'r2'>().notNull(),key:text('key').notNull().unique(),mime:text('mime').notNull(),size:integer('size'),sha256:text('sha256'),state:text('state').$type<ArtifactRecord['state']>().notNull(),errorCode:text('error_code'),cacheKey:text('cache_key').notNull(),clientMutationId:text('client_mutation_id').notNull(),attempts:integer('attempts').notNull().default(0),retryAt:timestamp('retry_at',{withTimezone:true}),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[uniqueIndex('city_artifact_cache_unique').on(t.ownerId,t.cacheKey),index('city_artifact_cleanup_idx').on(t.state,t.retryAt),index('city_artifact_scenario_idx').on(t.scenarioId,t.createdAt)]);
+export const cityShares=pgTable('city_shares',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>cityOwners.id,{onDelete:'cascade'}),scenarioId:text('scenario_id').notNull().references(()=>cityScenarios.id,{onDelete:'cascade'}),revisionId:text('revision_id').notNull().references(()=>cityRevisions.id),briefId:text('brief_id').references(()=>cityBriefs.id),briefVersion:integer('brief_version'),artifactIds:jsonb('artifact_ids').$type<string[]>().notNull().default([]),teamName:text('team_name').notNull(),tokenHash:text('token_hash').notNull().unique(),snapshot:jsonb('snapshot').$type<PublicSnapshot>().notNull(),clientMutationId:text('client_mutation_id').notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),revokedAt:timestamp('revoked_at',{withTimezone:true}),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[uniqueIndex('city_share_mutation_unique').on(t.ownerId,t.clientMutationId),index('city_share_scenario_idx').on(t.scenarioId,t.createdAt)]);

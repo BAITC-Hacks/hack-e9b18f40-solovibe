@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, gt, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { getDb, type CityTx } from "@/server/db/core";
-import { cityAnalyses, cityJobs, cityOwners, cityRateWindows, cityRuns, cityScenarios, citySearches, cityToolReceipts, cityWorkerHeartbeats } from "@/server/db/schema";
+import { cityAnalyses, cityJobs, cityOwners, cityRateWindows, cityRuns, cityScenarios, citySearches, cityToolReceipts, cityWorkerHeartbeats,cityBriefs } from "@/server/db/schema";
 import { stableJson } from "@/features/city/search";
 import type { JobLease, StoredRun, ToolExecution } from "./job-contracts";
 import { appendEvent } from "./events";
 import { CityError } from "./errors";
+import {purgeDeletedOwnerArtifacts,revokeOwnerArtifacts} from './cleanup';
 
 export class LeaseLostError extends Error { constructor() { super("LEASE_LOST"); } }
 export async function withLease<T>(lease: JobLease, work: (tx: CityTx, run: StoredRun) => Promise<T>): Promise<T> {
@@ -72,7 +73,7 @@ export async function createExecution(lease: JobLease): Promise<ToolExecution> {
       if (overBudget) throw new CityError("INVALID_AI_RESULT", 503);
     },
     async tool<T, P = T>(name: string, input: unknown, prepare: () => Promise<P>, commit?: (tx: CityTx, prepared: P) => Promise<T>): Promise<T> {
-      const allowed = ["readScenario", "readEvidence", "getAttribution", "comparePlans", "priceCondition", "applyAlternative", "validatePlan", "simulatePlan", "searchPlans", "saveAlternative", "saveAnalysis", "requestClarification"];
+      const allowed = ["readScenario", "readEvidence", "getAttribution", "comparePlans", "priceCondition", "applyAlternative", "stressTest", "repairStress", "readBrief", "writeBrief", "updateBrief", "validatePlan", "simulatePlan", "searchPlans", "saveAlternative", "saveAnalysis", "requestClarification"];
       if (!allowed.includes(name)) throw new CityError("INVALID_AI_RESULT", 503);
       const encoded = stableJson(input);
       if (Buffer.byteLength(encoded) > 65536) throw new CityError("INVALID_AI_RESULT", 503);
@@ -80,7 +81,7 @@ export async function createExecution(lease: JobLease): Promise<ToolExecution> {
       const existing = await withLease(lease, async (tx, current) => {
         const [receipt] = await tx.select().from(cityToolReceipts).where(and(eq(cityToolReceipts.runId, run.id), eq(cityToolReceipts.logicalStepId, name), eq(cityToolReceipts.argumentHash, argumentHash)));
         if (receipt) return receipt;
-        const searches = name === 'priceCondition' ? 2 : name === 'searchPlans' ? 1 : 0;
+        const searches = name === 'priceCondition' ? 2 : ['searchPlans','repairStress'].includes(name) ? 1 : 0;
         if (current.toolCount >= 8 || current.searchCount + searches > 3) throw new CityError("INVALID_AI_RESULT", 503);
         await tx.update(cityRuns).set({ toolCount: current.toolCount + 1, searchCount: current.searchCount + searches }).where(eq(cityRuns.id, run.id));
         const [created] = await tx.insert(cityToolReceipts).values({ id: randomUUID(), runId: run.id, logicalStepId: name, argumentHash, input, toolName: name, status: "started" }).returning();
@@ -105,7 +106,10 @@ export async function createExecution(lease: JobLease): Promise<ToolExecution> {
 
 export async function finishRun(lease: JobLease, result: { status: "completed" | "waiting_input"; question?: string }) {
   await withLease(lease, async (tx, run) => {
-    if (result.status === "completed") {
+    if (result.status === 'completed' && run.procedure==='brief') {
+      const [brief]=await tx.select().from(cityBriefs).where(and(eq(cityBriefs.id,run.context.briefId??''),eq(cityBriefs.ownerId,run.ownerId)));
+      if(!brief||brief.content.lastRunId!==run.id||brief.content.status==='pending')throw new CityError('INVALID_AI_RESULT',503);
+    } else if (result.status === "completed") {
       const [analysis] = await tx.select().from(cityAnalyses).where(and(eq(cityAnalyses.runId, run.id), eq(cityAnalyses.ownerId, run.ownerId)));
       if (!analysis) throw new CityError("INVALID_AI_RESULT", 503);
       if (run.procedure === "plan" && !run.alternativeRevisionIds.includes(analysis.document.candidateRevisionId ?? "")) {
@@ -143,7 +147,7 @@ export async function performRetention(job: typeof cityJobs.$inferSelect) {
     const [current] = await tx.select().from(cityJobs).where(eq(cityJobs.id, job.id)).for("update");
     if (!current || current.status !== "running" || current.leaseToken !== job.leaseToken || !current.leaseUntil || current.leaseUntil.getTime() <= Date.now()) throw new LeaseLostError();
     const expired = await tx.select({ id: cityOwners.id }).from(cityOwners).where(and(isNull(cityOwners.userId), lt(cityOwners.expiresAt, new Date()))).limit(100).for("update", { skipLocked: true });
-    if (expired.length) await tx.delete(cityOwners).where(inArray(cityOwners.id, expired.map(row => row.id)));
+    for(const owner of expired){await revokeOwnerArtifacts(owner.id,tx);if(await purgeDeletedOwnerArtifacts(owner.id,tx))await tx.delete(cityOwners).where(eq(cityOwners.id,owner.id));}
     await tx.delete(cityRateWindows).where(lt(cityRateWindows.windowStart, new Date(Date.now() - 86400000)));
     await tx.delete(cityWorkerHeartbeats).where(lt(cityWorkerHeartbeats.seenAt, new Date(Date.now() - 86400000)));
     await tx.update(cityJobs).set({ status: "completed", leaseUntil: null }).where(eq(cityJobs.id, current.id));

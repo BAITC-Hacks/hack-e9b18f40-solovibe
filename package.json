@@ -28,7 +28,12 @@
     "infra:stop": "docker compose stop db",
     "local:up": "docker compose build app && docker compose up -d --wait --wait-timeout 120 db && docker compose run -T --rm --no-deps migrate && docker compose up -d --no-deps --no-build --wait --wait-timeout 120 app worker",
     "local:stop": "docker compose stop",
-    "env:init": "node runtime/setup.mjs"
+    "env:init": "node runtime/setup.mjs",
+    "test:workshop": "tsx runtime/test-city-workshop.ts",
+    "test:brief": "tsx runtime/test-city-brief.ts",
+    "test:exports": "tsx --conditions=react-server runtime/test-city-exports.ts",
+    "test:shares": "tsx --conditions=react-server runtime/test-city-shares.ts",
+    "verify:delivery": "tsx runtime/verify-city-delivery.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.63",

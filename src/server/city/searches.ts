@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db/core";
-import { cityEvaluations, cityJobs, cityOwners, cityRevisions, citySearches } from "@/server/db/schema";
+import { cityEvaluations, cityJobs, cityOwners, cityRevisions, citySearches,cityStressTests } from "@/server/db/schema";
 import { AKIM_DATASET, DEFAULT_CONSTRAINTS } from "@/features/city/data/akim-v1";
 import { searchPlans } from "@/features/city/search";
 import type { SearchJobInput } from "@/features/city/ai-contracts";
@@ -11,8 +11,16 @@ import { consumeRate } from "./limits";
 import { CityError } from "./errors";
 import { LeaseLostError } from "./jobs";
 import type { WorkshopSearchView } from '@/features/city/workshop-contracts';
+import {getStress} from './stress';
+import {hardConditionIssues} from './ai/context';
 
 export async function createSearch(p: Principal, input: SearchJobInput) {
+  if(input.stressId){const s=await getStress(p,input.stressId);if(s.experiment.sourceRevisionId!==input.inputRevisionId||s.experiment.scenarioId!==input.scenarioId||JSON.stringify(s.experiment.assumption)!==JSON.stringify(input.assumptions)){
+    // JSONB ordering is irrelevant; compare the individual assumption fields.
+    if(s.experiment.sourceRevisionId!==input.inputRevisionId||s.experiment.scenarioId!==input.scenarioId||s.experiment.assumption.measureId!==input.assumptions?.measureId||s.experiment.assumption.costIncreasePct!==input.assumptions?.costIncreasePct||s.experiment.assumption.extraLagQuarters!==input.assumptions?.extraLagQuarters)throw new CityError('INVALID_REQUEST');
+  }
+  const {revision}=await (await import('./scenarios')).getRevision(p,input.scenarioId,input.inputRevisionId);if(hardConditionIssues(revision.constraints,input.constraints).length)throw new CityError('CONSTRAINT_CONFLICT');
+  } else if(input.assumptions)throw new CityError('INVALID_REQUEST');
   const id = await getDb().transaction(async tx => {
     const scenario = await requireScenario(p, input.scenarioId, tx, true);
     const [owner] = await tx.select().from(cityOwners).where(eq(cityOwners.id, scenario.ownerId));
@@ -20,7 +28,7 @@ export async function createSearch(p: Principal, input: SearchJobInput) {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${quotaKey}))`);
     const [duplicate] = await tx.select().from(cityJobs).where(and(eq(cityJobs.ownerId, owner.id), eq(cityJobs.clientRequestId, input.clientRequestId)));
     if (duplicate) return duplicate.id;
-    if (scenario.currentRevisionId !== input.inputRevisionId) throw new CityError("STALE_REVISION", 409);
+    if (!input.stressId && scenario.currentRevisionId !== input.inputRevisionId) throw new CityError("STALE_REVISION", 409);
     const [active] = await tx.select().from(cityJobs).where(and(eq(cityJobs.quotaKey, quotaKey), inArray(cityJobs.status, ["queued", "running"])));
     if (active) throw new CityError("RATE_LIMITED", 429, undefined, 10);
     await consumeRate(tx, `search:${quotaKey}`, owner.userId ? 100 : 30);
@@ -63,9 +71,12 @@ export async function processSearchJob(job: typeof cityJobs.$inferSelect, signal
     if (!owner || (owner.expiresAt && owner.expiresAt.getTime() <= Date.now())) throw new LeaseLostError();
     const searchId = randomUUID();
     await tx.insert(citySearches).values({ id: searchId, ownerId: job.ownerId!, scenarioId: input.scenarioId, inputRevisionId: input.inputRevisionId, inputHash: result.inputHash, result,baselineResult:baseline });
+    const repairIds:string[]=[];
     for(const [i,candidate] of result.candidates.entries()) {
-      await insertRevision(tx,{scenarioId:input.scenarioId,decisions:candidate.decisions,constraints:input.constraints,clientMutationId:`search:${job.id}:${i}`,cause:'alternative',parentId:input.inputRevisionId,sourceRevisionId:input.inputRevisionId,intent:input.stressId?`stress:${input.stressId}`:'',title:undefined});
+      const saved=await insertRevision(tx,{scenarioId:input.scenarioId,decisions:candidate.decisions,constraints:input.constraints,clientMutationId:`search:${job.id}:${i}`,cause:'alternative',parentId:input.inputRevisionId,sourceRevisionId:input.inputRevisionId,intent:input.stressId?`stress:${input.stressId}`:'',title:undefined});
+      repairIds.push(saved.revision.id);
     }
+    if(input.stressId){const [s]=await tx.select().from(cityStressTests).where(and(eq(cityStressTests.id,input.stressId),eq(cityStressTests.ownerId,job.ownerId!))).for('update');if(!s)throw new CityError('NOT_FOUND',404);await tx.update(cityStressTests).set({repairRevisionIds:[...new Set([...s.repairRevisionIds,...repairIds])]}).where(eq(cityStressTests.id,s.id));}
     await tx.update(cityJobs).set({ status: "completed", resultId: searchId, leaseUntil: null }).where(eq(cityJobs.id, job.id));
     signal.throwIfAborted();
   });

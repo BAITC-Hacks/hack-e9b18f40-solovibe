@@ -26,7 +26,8 @@ async function readJson<T>(response: Response): Promise<T> {
 export interface CreateRunInput {
   scenarioId: string;
   inputRevisionId: string;
-  procedure: "plan" | "explain";
+  procedure: "plan" | "explain" | "brief";
+  context?:import('../ai-contracts').RunContext;
   objective: string;
   locale: "ru" | "kk" | "en";
   clientRequestId: string;

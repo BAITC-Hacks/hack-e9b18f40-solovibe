@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { EvaluationRecord, RevisionRecord } from "./records";
 import { constraintsSchema, stressAssumptionSchema } from "./contracts";
+export const runContextSchema=z.object({stressId:z.string().uuid().optional(),briefId:z.string().uuid().optional(),briefVersion:z.number().int().positive().optional(),sectionIds:z.array(z.enum(['goal','benefits','tradeoffs','risks','assumptions','rationale','limits'])).max(7).optional()}).strict();
+export type RunContext=z.infer<typeof runContextSchema>;
 
 export const runStatuses = ["queued", "running", "waiting_input", "completed", "failed", "cancelled"] as const;
 export type RunStatus = typeof runStatuses[number];
@@ -18,12 +20,12 @@ export type AnalysisBlock = z.infer<typeof analysisBlockSchema>;
 export interface AnalysisRecord { id: string; runId: string; sourceRevisionId: string; document: AnalysisDocument; createdAt: string }
 export interface RunRecord {
   id: string; scenarioId: string; inputRevisionId: string; parentRunId: string | null;
-  procedure: "plan" | "explain"; objective: string; locale: "ru" | "kk" | "en"; status: RunStatus;
+  procedure: "plan" | "explain" | "brief"; objective: string; locale: "ru" | "kk" | "en"; status: RunStatus; context:RunContext;
   errorCode: string | null; question: string | null; analysisId: string | null; alternativeRevisionIds: string[];
   createdAt: string; updatedAt: string; usage: { inputTokens: number; outputTokens: number };
 }
 export interface RunEvent { runId: string; seq: number; kind: "status" | "tool" | "result"; status: string; toolName: string | null; payload: Record<string, string | number | boolean | null>; createdAt: string }
-export interface RunView { run: RunRecord; events: RunEvent[]; analysis: AnalysisRecord | null; source: { revision: RevisionRecord; evaluation: EvaluationRecord }; alternatives: { revision: RevisionRecord; evaluation: EvaluationRecord }[]; stale: boolean }
-export const createRunSchema = z.object({ scenarioId: z.string().uuid(), inputRevisionId: z.string().uuid(), procedure: z.enum(["plan", "explain"]), objective: z.string().trim().min(3).max(2000), locale: z.enum(["ru", "kk", "en"]).default("ru"), clientRequestId: z.string().uuid(), parentRunId: z.string().uuid().optional() }).strict();
+export interface RunView { run: RunRecord; events: RunEvent[]; analysis: AnalysisRecord | null; source: { revision: RevisionRecord; evaluation: EvaluationRecord }; alternatives: { revision: RevisionRecord; evaluation: EvaluationRecord }[]; supplementaryEvaluations?:EvaluationRecord[]; stale: boolean }
+export const createRunSchema = z.object({ scenarioId: z.string().uuid(), inputRevisionId: z.string().uuid(), procedure: z.enum(["plan", "explain", "brief"]), objective: z.string().trim().min(3).max(2000), locale: z.enum(["ru", "kk", "en"]).default("ru"), clientRequestId: z.string().uuid(), parentRunId: z.string().uuid().optional(),context:runContextSchema.default({}) }).strict();
 export const createSearchSchema = z.object({ scenarioId: z.string().uuid(), inputRevisionId: z.string().uuid(), constraints: constraintsSchema, assumptions: stressAssumptionSchema.optional(), limit: z.number().int().min(1).max(3).default(3), clientRequestId: z.string().uuid(), priceCondition: z.enum(['minDirectDistricts','maxCriticalPairs','maxSpend','requiredDirections','locked','excludedMeasureIds','districtFloors','indicatorFloors']).optional(), stressId: z.string().uuid().optional() }).strict();
 export type SearchJobInput = z.infer<typeof createSearchSchema>;

@@ -16,5 +16,5 @@ export interface StressRecord {
   id: string; scenarioId: string; sourceRevisionId: string; assumption: StressAssumption;
   baseline: Evaluation; stressed: Evaluation; repairRevisionIds: string[]; createdAt: string;
 }
-export interface StressView { experiment: StressRecord; stale: boolean; repairs: (RevisionSnapshot & { sensitivity: Evaluation })[] }
+export interface StressView { experiment: StressRecord; stale: boolean; repairs: (RevisionSnapshot & { sensitivity: Evaluation })[]; selectedEvaluation?:Evaluation; selectedRevisionId?:string }
 export type PriceCondition = keyof Pick<Constraints,'minDirectDistricts'|'maxCriticalPairs'|'maxSpend'|'requiredDirections'|'locked'|'excludedMeasureIds'|'districtFloors'|'indicatorFloors'>;
