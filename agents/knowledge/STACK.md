@@ -40,8 +40,8 @@ For a finished implementation block, use `node agents/scripts/checkpoint.mjs "Co
 - Stop local containers without deleting data: pnpm local:stop
 - Focused static checks: pnpm check
 - Domain/state/queue checks: pnpm test:domain, pnpm test:state, pnpm test:worker
-- Actual HTTP persistence/rights checks: pnpm test:integration against a running local app
-- Bounded configured-provider acceptance: pnpm verify:ai (CITY_TEST_URL, optional CITY_VERIFY_CASE=V3 or V4)
+- Actual HTTP persistence/rights checks: pnpm test:integration against a running local app using the configured DATABASE_URL
+- Bounded configured-provider acceptance: pnpm verify:ai (CITY_TEST_URL must use DATABASE_URL; optional CITY_VERIFY_CASE=V3 or V4)
 - Development worker: pnpm worker; pnpm worker:build creates the Node bundle used by the image
 - Integrated Git milestone: node agents/scripts/checkpoint.mjs "Concrete message" -- ready/path another/path
 Use either the native dev app or container app on port 3000 at a time. Local Postgres binds only to 127.0.0.1:15432. Volumes preserve data.

@@ -1,5 +1,5 @@
 # 01 Core and first real AI result
-Status:01.1/01.2 delivered;01.3 implemented with successful live V3/V4 and recovery checks, checkpoint and final public streaming proof pending. MAIN completes01.1–01.3 in this chat and hands off to02. No implementation of later stage features as a substitute for this boundary.
+Status: complete.01.1–01.3 delivered, live V3/V4 and public HTTPS explanation/SSE/replay verified. Final user layout correction delivered ind54c077 after the core AI/chat commit0752987. Next user-opened MAIN executes02, starting02.1. No later-stage implementation was started here.
 
 ## Entry and exit
 Read root AGENTS, INDEX, STATE, PROJECT, PLAN C1–C9, STACK; relevant ENGINEERING, integrations AI/DATABASE/AUTH, HARNESS and design SYSTEM/DIRECTION/UX/COPY. Source: knowledge/cases/akim-dataset.md and verified HACKATHON examples. Reuse prepared files and dependencies.
