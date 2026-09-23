@@ -16,13 +16,13 @@ A meaningful first session yields a saved feasible scenario/alternative and an i
 ## Approved connected suite
 | Capability | Intended user outcome | Implementation status |
 | --- | --- | --- |
-| City board/catalogue | Five decisions with immediate district consequences, budget/conflict checks and source evidence | Not started |
+| City board/catalogue | Five decisions with immediate district consequences, budget/conflict checks and source evidence | Core board, catalogue, owned revisions and library implemented in01.2; deeper evidence tools in02 |
 | Constrained AI planning | Feasible plans respecting pins/priorities, with honest infeasibility and explicit repairs | Not started |
 | Alternatives/history | Compare, price a condition, branch/apply/restore without losing state | Not started |
 | Cost/delay sensitivity | Test explicit assumption, repair under same conditions, retain baseline | Not started |
 | Decision brief/files | Editable evidence-linked rationale, presentation view, HTML/JSON/CSV and print to PDF | Not started |
 | Team snapshots | Explicit frozen sharing, compatible comparisons and revocation | Not started |
-| Original landing/localization | Visible working proof, responsive polished ru/kk/en suite | Not started |
+| Original landing/localization | Visible working proof, responsive polished ru/kk/en suite | Original brand/primitives and functional localized entry/board/auth/library in01; complete selling proof in04 |
 | Review/reproducibility/media | Dedicated stability review, final Russian README, then demo and landing integration | Not started |
 
 No pricing/monetization, fabricated outcomes, live collaborative editing, arbitrary external city-data fetching or unsupported real-world forecasting. The natural development path is calibrated versioned data and larger-search support; neither is advertised as currently implemented.
@@ -42,7 +42,7 @@ A pure deterministic evaluator/search provides official numbers and constraints.
 PostgreSQL stores owner/scenario/revision/evaluation/search/stress/run/brief/share state. A planned same-image worker handles durable jobs, with leases/fencing/receipts/heartbeat and app+worker revision checks. Prepared provider wrappers are not yet a working harness.
 Private R2 or persistent local volume stores generated HTML/JSON/CSV bytes; PostgreSQL stores version/owner/checksum/key metadata. Authorized app downloads permit immediate revocation on new requests; deletion uses durable tombstones. No R2 means local functionality, not an in-memory substitute.
 Guest principals use secure HttpOnly hashed-token ownership and30-day inactivity retention; accounts claim stable owner records without moving objects. Source revisions and brief versions prevent stale AI/edits from overwriting work.
-Canonical cross-stage contracts/API/limits/data paths and acceptance are in [PLAN C1–C9](PLAN.md). Shared domain code now exists in src/features/city/; owned services and worker follow in01.2/01.3.
+Canonical cross-stage contracts/API/limits/data paths and acceptance are in [PLAN C1–C9](PLAN.md). Domain authority is src/features/city/contracts.ts; client/server records are in records.ts. Owned services and protected API routes exist; durable AI worker follows01.3. Node-safe DB core is src/server/db/core.ts; Next callers use guarded db/index.ts.
 
 ## Evidence and execution
 Read-only mathematical audit verified source baseline52.557680 and example56.543070, exact valid-space count694395 and maximum57.236735. Full references/edge cases are in HACKATHON. These are planning feasibility evidence, not tests of an implemented app.
@@ -50,4 +50,5 @@ Read-only mathematical audit verified source baseline52.557680 and example56.543
 Stage01.1 implements the shared evaluator/search, immutable dataset seed in PostgreSQL, localized labels and original brand/UI primitives. Runtime modules never load agents/. Empty/incomplete drafts have no official Score; evaluateBaseline is a separate reference.
 Implemented domain verification reproduces V1/V2/V4:694395 valid plans/max57.236735, all-five68200/max56.344510, two-district56.997700, all-five/zero-critical infeasibility. Exhaustive local benchmark about5.9s and12MiB RSS growth; preview does not run search. Migration and repeated idempotent seed succeeded locally. Static/build/delivery evidence belongs to STATE at each checkpoint.
 Implementation entry was already clean; planning was committed. No duplicate planning checkpoint was needed. Commands use bundled Node24.19.0 because system Node22.13.0 is below the required minimum.
+01.1 delivered as0c2c83e.01.2 actual HTTP/PostgreSQL test covers8 groups: source example/reopen, two-guest privacy, create/revision idempotency, changed saved outcome, stale CAS409, invalid-no-mutation, fork/title-search/delete, signup/claim/signin and guest-token revocation. SSR entry/board/auth/library probes pass for affected ru/kk/en routes. CSRF403 and body-limit413 verified. Localhost and127.0.0.1 on the configured port are trusted local aliases; production accepts only its configured origin. The reported local origin/registration defect was reproduced and fixed, with the integration suite passing through127.0.0.1.
 User owns visual testing and TESTING inbox; no browser auto-opening, routine browser audits or polling during planning. MAIN updates feature statuses and exact STATE cursor only at useful boundaries.

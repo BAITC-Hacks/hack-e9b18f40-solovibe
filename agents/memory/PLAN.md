@@ -1,6 +1,6 @@
 # CityBalance execution plan
 
-Approved identity: **CityBalance**, **«Решайте, каким станет город.»** Concept, identity and six-capability scope are approved. This is the single executable plan. First-level stages are separate user-opened MAIN chats, second-level blocks are integrated commits, deeper numbered tasks follow dependencies. All implementation is initially unstarted.
+Approved identity: **CityBalance**, **«Решайте, каким станет город.»** Concept, identity and six-capability scope are approved. This is the single executable plan. First-level stages are separate user-opened MAIN chats, second-level blocks are integrated commits, deeper numbered tasks follow dependencies. Implementation is active in stage01; PROJECT and STATE record verified progress.
 
 ## Depth and visible advantage
 The finite dataset can be solved once by a maximizer; a score dashboard and fluent explanation would be shallow. CityBalance completes a constrained decision: preserve commitments, find feasible substitutions, expose beneficiaries and disadvantages, test a visible assumption, and carry the chosen version into an editable reproducible brief. Better Score is a model outcome, not measured social benefit.

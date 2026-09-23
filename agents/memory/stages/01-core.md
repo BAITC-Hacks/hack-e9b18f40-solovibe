@@ -1,5 +1,5 @@
 # 01 Core and first real AI result
-Status: not started. MAIN completes01.1–01.3 in this chat and hands off to02. No implementation of later stage features as a substitute for this boundary.
+Status:01.1 delivered;01.2 implemented and verified, checkpoint pending;01.3 next. MAIN completes01.1–01.3 in this chat and hands off to02. No implementation of later stage features as a substitute for this boundary.
 
 ## Entry and exit
 Read root AGENTS, INDEX, STATE, PROJECT, PLAN C1–C9, STACK; relevant ENGINEERING, integrations AI/DATABASE/AUTH, HARNESS and design SYSTEM/DIRECTION/UX/COPY. Source: knowledge/cases/akim-dataset.md and verified HACKATHON examples. Reuse prepared files and dependencies.

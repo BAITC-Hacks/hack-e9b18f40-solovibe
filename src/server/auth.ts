@@ -4,12 +4,14 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { getDb } from "./db";
 import * as schema from "./db/schema";
+import { trustedAppOrigins } from "./origins";
 
 function createAuth() {
   if (!process.env.BETTER_AUTH_SECRET) throw new Error("BETTER_AUTH_SECRET is not configured");
   return betterAuth({
-    appName: "SoloVibe",
+    appName: "CityBalance",
     baseURL: process.env.APP_URL ?? "http://localhost:3000",
+    trustedOrigins: trustedAppOrigins(),
     secret: process.env.BETTER_AUTH_SECRET,
     emailAndPassword: { enabled: true, minPasswordLength: 10 },
     database: drizzleAdapter(getDb(), { provider: "pg", schema }),

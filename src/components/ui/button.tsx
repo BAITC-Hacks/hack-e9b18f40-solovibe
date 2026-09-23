@@ -51,7 +51,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
     >
       {loading ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
-      <span>{loading && loadingLabel ? loadingLabel : children}</span>
+      <span className="inline-flex items-center justify-center gap-2">{loading && loadingLabel ? loadingLabel : children}</span>
     </button>
   );
 });
