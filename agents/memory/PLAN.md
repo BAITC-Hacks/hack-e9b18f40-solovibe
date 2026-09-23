@@ -10,7 +10,7 @@ First-viewport proof: a real budget transformation from the unconstrained best p
 The complete scope stays connected: board, constrained AI planning, comparison/versions, cost/delay sensitivity and repair, editable brief/exports, revocable team comparison. No pricing, real-city prediction, arbitrary external scraping, live multiplayer or generic agent platform. Versioned calibrated catalogues and a larger-search adapter are concrete extension paths, not promised implemented modules.
 
 ## Stage index
-| Stage / separate MAIN chat | Outcome | Commit blocks | Dependency |
+| Stage / assignment | Outcome | Commit blocks | Dependency |
 | --- | --- | --- | --- |
 | [01 Core and first real AI result](stages/01-core.md) | Exact model/search, original primitives, owned board, live saved AI alternative | 01.1 domain; 01.2 board; 01.3 AI | Prepared foundation |
 | [02 Decision workshop](stages/02-workshop.md) | Full evidence/editing, priorities/versions/comparison, stress repair | 02.1 evidence; 02.2 alternatives; 02.3 stress | 01 |
@@ -105,7 +105,7 @@ Create fixtures under `src/features/city/__tests__/fixtures.ts` and focused runt
 Separate preserved general rubric: fit20→V1/V3; technical25→V2/V5/V6; README20→06.1; reproducibility20→V9; reliability/security15→V6/V7/05. Do not combine weights. Optional suggestions implemented: team comparison, district changes, recommendations, explicit cost/delay stress, compact presentation. Do not market stress as a stochastic city-event simulator.
 
 ## Checkpoints/handoff
-This chat changes only knowledge/memory/logo, no application implementation or Git. Known authorized planning edits are the clean-entry exception. First implementation MAIN inspects ownership once and checkpoints the completed planning package before product coding using existing checkpoint/deploy; no reapproval/discard/restarting preparation. Housekeeping is not another plan/stage. Later stages start/end clean; unrelated changes remain protected.
+All six stages are implemented. The user expanded the shared02–04 MAIN assignment to05 backend review and06 final delivery under a deadline. Confirmed findings and verification are in the stage files and STATE; no alternate plan was created.
 
 Each block: finish all writers, meaningful focused checks, then `node agents/scripts/checkpoint.mjs "Concrete delivered behavior" -- <all finished owned paths>`. It performs static/build, commit/push and local/remote deploy. Verify returned revision and worker readiness. Retry only failed deploy via existing manual-deploy. Preserve SSH source-build, PostgreSQL/private R2/Brev HTTPS/unbuffered streams;01.3 must include worker in local/remote/rollback deployment. No browser auto-opening or routine ready announcements.
 

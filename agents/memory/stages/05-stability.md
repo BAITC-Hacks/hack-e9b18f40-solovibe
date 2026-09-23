@@ -1,5 +1,5 @@
 # 05 Dedicated code review and stability
-Status:05.1 reviewed and confirmed backend fixes integrated in parallel with04.2 by explicit user authorization;05.2 release gate is awaiting the current UX checkpoint. This is the requested single product-wide code review stage, not an automatic reviewer swarm or another planning ceremony. MAIN reviews actual integrated code and fixes confirmed defects. A bounded independent repair can be delegated with exact owned paths after MAIN establishes reproduction; no parallel speculative reviewers.
+Status: Complete05.1–05.2; confirmed defects repaired, V9 and updated-interface HTTP chain passed.
 
 Entry: AGENTS/INDEX/STATE/PROJECT, PLAN C1–C9, this stage, relevant ENGINEERING/WORKFLOW and TESTING. Trace actual code paths, not planning claims. Reuse previous verification for unchanged code. Full UI/browser testing stays user-owned; no routine screenshots/Playwright. Core defects block06.
 

@@ -1,6 +1,7 @@
 import { analysisDocumentSchema, type AnalysisDocument } from '@/features/city/ai-contracts';
 import { DIRECTIONS, type Constraints, type EvidenceRef, type SearchResult } from '@/features/city/contracts';
 import type { EvaluationRecord, RevisionRecord } from '@/features/city/records';
+import {withoutNegatedGuarantees} from '@/features/city/claim-language';
 
 export interface QualityContext {
   procedure: 'plan' | 'explain';
@@ -59,7 +60,7 @@ export function checkAnalysis(input: unknown, context: QualityContext): QualityR
   } else if (!document.blocks.some(b => b.kind === 'benefit' || b.kind === 'tradeoff' || b.kind === 'noImprovement')) issues.push('CONCRETE_OUTCOME_REQUIRED');
   for (const block of document.blocks) {
     if (/\p{N}|https?:\/\//u.test(block.text)) issues.push('NUMERIC_PROSE_OR_URL');
-    if (/гарантир\w*|реальн\w* эконом\w*|сэконом\w* тенге|guaranteed|actual (?:savings|residents served)|нақты эконом/u.test(block.text.toLowerCase())) issues.push('UNSUPPORTED_REAL_WORLD_CLAIM');
+    if (/гарантир\w*|реальн\w* эконом\w*|сэконом\w* тенге|guaranteed|actual (?:savings|residents served)|нақты эконом/u.test(withoutNegatedGuarantees(block.text).toLowerCase())) issues.push('UNSUPPORTED_REAL_WORLD_CLAIM');
     if (['benefit', 'tradeoff', 'risk', 'noImprovement'].includes(block.kind) && !block.refs.length) issues.push('EVIDENCE_REQUIRED');
     const deltas: number[] = [];
     for (const link of block.refs) {

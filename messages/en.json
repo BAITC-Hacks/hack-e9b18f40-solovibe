@@ -892,5 +892,21 @@
     "scenarios": "My scenarios",
     "modelNote": "The calculation uses synthetic data and is intended for comparing decisions.",
     "attribution": "CityBalance was created by team SoloVibe for HackAlem."
+  },
+  "demoVideo": {
+    "title": "From priority to decision in a minute",
+    "description": "See a condition change a plan, a test expose a risk, and the result become a document for discussion.",
+    "fallback": "Open the video using the link below.",
+    "failed": "The video could not load.",
+    "retry": "Retry loading",
+    "open": "Open MP4",
+    "transcript": "Video transcript",
+    "language": "The video uses Russian text without narration. Waiting is compressed; the results shown were saved in the product.",
+    "beat1": "One budget and five decisions. Choose a condition that matters.",
+    "beat2": "Direct investment in two districts changes two measures and retains three.",
+    "beat3": "The budget changes from 98 to 100, the score from 57.24 to 57.00. The condition costs 0.24 points.",
+    "beat4": "A 20% LRT cost increase takes the plan to 106. The repair returns it to 100 while retaining the school in Nura.",
+    "beat5": "Add your own rationale, save a file and share the selected version.",
+    "beat6": "CityBalance. Build your own scenario in the city-decision model."
   }
 }

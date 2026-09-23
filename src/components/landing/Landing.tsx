@@ -19,6 +19,7 @@ export interface LandingProps {
   best: Evaluation;
   twoDistricts: Evaluation;
   deliveryProof?: ReactNode;
+  demoVideo?:ReactNode;
   initialVariant?:ProofVariant;
 }
 
@@ -143,7 +144,7 @@ function CityTabletop({ evaluation }: { evaluation: Evaluation }) {
   );
 }
 
-export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-districts' }: LandingProps) {
+export function Landing({ best, twoDistricts, deliveryProof,demoVideo,initialVariant='two-districts' }: LandingProps) {
   const locale = useLocale();
   const t = useTranslations("landing");
   const tMeasures = useTranslations("measures");
@@ -277,6 +278,7 @@ export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-
         <div className="landing-example__copy"><h2 id="landing-outcome-title">{t("outcomeTitle")}</h2><p>{t("outcomeIntro")}</p><ol><li>{t("outcomeCompare")}</li><li>{t("outcomeEdit")}</li><li>{t("outcomeDeliver")}</li></ol></div>
         <div className="landing-brief">{deliveryProof ?? <><div className="landing-brief__header"><FileText size={21} aria-hidden="true" /><strong>{t("briefTitle")}</strong></div><p>{t("briefFinding", { districts: current.directDistrictIds.length })}</p><p><strong>{t("briefBudgetValue", { value: compactFormat.format(current.cost) })}</strong>, {current.score === null ? t("notAvailable") : format.format(current.score)}</p></>}</div>
       </section>
+      {demoVideo}
     </main>
   );
 }

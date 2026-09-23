@@ -1,5 +1,5 @@
 # 02 Complete decision workshop
-Status:02.1/02.2 delivered0da3fbf;02.3 implemented and verified, checkpoint pending in the combined02–04 MAIN assignment. Requires completed01 and its actual code/contracts/evidence; do not recreate foundations. Finish02.1–02.3 and continue03 in this chat, with independent04.1 work in parallel. The chat boundary is05.1 after all eight02–04 blocks.
+Status: Complete02.1–02.3; delivered with verified connected workshop/stress.
 Read PROJECT, PLAN C1–C9, own stage, relevant design/AI guidance. Existing city services/types are authoritative. Inherit C3/C4 owner/CAS/idempotency, C7 ru/kk/en/responsive states, C5 run limits. MAIN owns routes/types/schema/messages; a worker may own evidence views while MAIN implements search comparison, then stress views after contract handoff. No concurrent writers to shared files.
 
 ## 02.1 Evidence that explains each consequence

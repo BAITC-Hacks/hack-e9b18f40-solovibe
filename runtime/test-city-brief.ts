@@ -38,6 +38,8 @@ try {
   const risk = created.source.evaluation.result.evidence.find(e => e.kind === 'indicator')!;
   const drafts = created.brief.sections.map(section => ({ id: section.id, text: section.id === 'limits' ? 'These model results do not prove real-world causal effects.' : section.id === 'tradeoffs' ? 'The safety measure worsens the modelled congestion indicator.' : 'The selected district benefits from the supported model measures.', refs: ['benefits', 'risks', 'tradeoffs'].includes(section.id) ? [{ evaluationId: created.source.evaluation.id, evidenceId: section.id === 'benefits' ? benefit.id : section.id === 'tradeoffs' ? concession.id : risk.id }] : [] }));
   assert.deepEqual(checkBriefDrafts(created, drafts), []);
+  assert.deepEqual(checkBriefDrafts(created,drafts.map(d=>d.id==='limits'?{...d,text:'Это результаты модели, не прогноз реальных эффектов; исполнение не гарантировано.'}:d)),[]);
+  assert.ok(checkBriefDrafts(created,drafts.map(d=>d.id==='limits'?{...d,text:'Это результаты модели, реальное исполнение гарантировано.'}:d)).includes('UNSUPPORTED_REAL_WORLD_CLAIM'));
   assert.ok(checkBriefDrafts(created, drafts.map(d => d.id === 'benefits' ? { ...d, text: 'An invented benefit of 999 residents.' } : d)).includes('NUMERIC_PROSE_OR_URL'));
   assert.ok(checkBriefDrafts(created, drafts.map(d => d.id === 'benefits' ? { ...d, refs: [{ evaluationId: 'foreign', evidenceId: benefit.id }] } : d)).includes('UNKNOWN_EVIDENCE'));
   await getDb().transaction(tx => commitGeneratedBrief(tx, p, id, 1, drafts, undefined, randomUUID()));

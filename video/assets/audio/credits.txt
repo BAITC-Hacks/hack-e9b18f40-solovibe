@@ -1,0 +1,12 @@
+CityBalance demo audio
+
+Music and sound effects were authored for this project by the SoloVibe team using an original procedural synthesis script. The music, click, whoosh and confirmation sounds contain no downloaded samples, third-party recordings or copyrighted compositions.
+
+Files:
+- music.wav: original evolving plucked instrumental bed
+- click.wav: original dry tactile contact
+- whoosh.wav: original filtered-noise transition
+- confirm.wav: original three-note confirmation
+- mix.wav: 60-second synchronized mix
+
+Rights: original project asset, cleared for the CityBalance demo and repository documentation.

@@ -12,6 +12,7 @@ import { getRevision, requireScenario, revisionRecord } from './scenarios';
 import { getStress } from './stress';
 import {evaluate} from '@/features/city/engine';
 import {AKIM_DATASET} from '@/features/city/data/akim-v1';
+import {withoutNegatedGuarantees} from '@/features/city/claim-language';
 
 type Reader = CityDb | CityTx;
 type Draft = z.infer<typeof briefDraftSchema>;
@@ -132,7 +133,7 @@ export function checkBriefDrafts(view: BriefView, drafts: Draft[], sectionIds?: 
   if (drafts.some(d => !allowed.includes(d.id)) || allowed.some(id => !drafts.some(d => d.id === id))) issues.push('SECTION_SCOPE_MISMATCH');
   for (const draft of drafts) {
     if (/\p{N}|https?:\/\//u.test(draft.text)) issues.push('NUMERIC_PROSE_OR_URL');
-    if (/гарантир|сэконом.*тенге|guaranteed|actual savings|нақты үнем|глобальн.*оптим|global.*optim|ең үздік|globally best/iu.test(draft.text)) issues.push('UNSUPPORTED_REAL_WORLD_CLAIM');
+    if (/гарантир|сэконом.*тенге|guaranteed|actual savings|нақты үнем|глобальн.*оптим|global.*optim|ең үздік|globally best/iu.test(withoutNegatedGuarantees(draft.text))) issues.push('UNSUPPORTED_REAL_WORLD_CLAIM');
     if (draft.id === 'limits' && (!/модел|model|үлгі/iu.test(draft.text) || !/нақты|реаль|real|болжам|прогноз|forecast|себеп|caus/iu.test(draft.text))) issues.push('MODEL_LIMITATION_REQUIRED');
     if (['benefits', 'risks'].includes(draft.id) && !draft.refs.length) issues.push('EVIDENCE_REQUIRED');
     const deltas: number[] = [];

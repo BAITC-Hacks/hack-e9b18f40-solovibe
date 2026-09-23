@@ -12,3 +12,4 @@ agents/TESTING.md
 storage/
 *.log
 video/.hyperframes/
+/video/renders/
