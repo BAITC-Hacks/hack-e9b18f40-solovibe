@@ -1,0 +1,1 @@
+ALTER TABLE "city_tool_receipts" ADD COLUMN "input" jsonb;

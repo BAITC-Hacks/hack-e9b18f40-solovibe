@@ -1,5 +1,7 @@
-import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Constraints, Decision, Evaluation } from "@/features/city/contracts";
+import type { SearchResult } from "@/features/city/contracts";
+import type { AnalysisDocument, RunStatus, RunEvent, SearchJobInput } from "@/features/city/ai-contracts";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -98,4 +100,91 @@ export const cityEvaluations = pgTable("city_evaluations", {
   revisionId: text("revision_id").notNull().unique().references(() => cityRevisions.id, { onDelete: "cascade" }),
   result: jsonb("result").$type<Evaluation>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const cityRuns = pgTable("city_runs", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => cityOwners.id, { onDelete: "cascade" }),
+  quotaKey: text("quota_key").notNull(),
+  scenarioId: text("scenario_id").notNull().references(() => cityScenarios.id, { onDelete: "cascade" }),
+  inputRevisionId: text("input_revision_id").notNull().references(() => cityRevisions.id, { onDelete: "cascade" }),
+  parentRunId: text("parent_run_id"),
+  procedure: text("procedure").$type<"plan" | "explain">().notNull(),
+  objective: text("objective").notNull(),
+  locale: text("locale").$type<"ru" | "kk" | "en">().notNull(),
+  inputHash: text("input_hash").notNull(),
+  clientRequestId: text("client_request_id").notNull(),
+  status: text("status").$type<RunStatus>().notNull(),
+  errorCode: text("error_code"),
+  question: text("question"),
+  analysisId: text("analysis_id"),
+  alternativeRevisionIds: jsonb("alternative_revision_ids").$type<string[]>().notNull().default([]),
+  eventSeq: integer("event_seq").notNull().default(0),
+  toolCount: integer("tool_count").notNull().default(0),
+  searchCount: integer("search_count").notNull().default(0),
+  usage: jsonb("usage").$type<{ inputTokens: number; outputTokens: number }>().notNull().default({ inputTokens: 0, outputTokens: 0 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
+}, t => [uniqueIndex("city_runs_request_unique").on(t.ownerId, t.clientRequestId), index("city_runs_scenario_idx").on(t.scenarioId, t.createdAt), index("city_runs_quota_idx").on(t.quotaKey, t.status)]);
+
+export const cityJobs = pgTable("city_jobs", {
+  id: text("id").primaryKey(),
+  kind: text("kind").$type<"analysis" | "search" | "retention">().notNull(),
+  input: jsonb("input").$type<SearchJobInput>(),
+  clientRequestId: text("client_request_id"),
+  resultId: text("result_id"),
+  errorCode: text("error_code"),
+  runId: text("run_id").unique().references(() => cityRuns.id, { onDelete: "cascade" }),
+  ownerId: text("owner_id").references(() => cityOwners.id, { onDelete: "cascade" }),
+  quotaKey: text("quota_key").notNull(),
+  status: text("status").$type<"queued" | "running" | "completed" | "failed" | "cancelled">().notNull().default("queued"),
+  attempts: integer("attempts").notNull().default(0),
+  leaseToken: integer("lease_token").notNull().default(0),
+  leaseUntil: timestamp("lease_until", { withTimezone: true }),
+  workerId: text("worker_id"),
+  notBefore: timestamp("not_before", { withTimezone: true }).defaultNow().notNull(),
+  deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, t => [index("city_jobs_claim_idx").on(t.status, t.notBefore), index("city_jobs_owner_idx").on(t.quotaKey, t.status), uniqueIndex("city_jobs_request_unique").on(t.ownerId, t.clientRequestId)]);
+
+export const cityRunEvents = pgTable("city_run_events", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => cityRuns.id, { onDelete: "cascade" }),
+  seq: integer("seq").notNull(),
+  kind: text("kind").$type<RunEvent["kind"]>().notNull(),
+  status: text("status").notNull(), toolName: text("tool_name"),
+  payload: jsonb("payload").$type<RunEvent["payload"]>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, t => [uniqueIndex("city_run_events_seq_unique").on(t.runId, t.seq)]);
+
+export const cityToolReceipts = pgTable("city_tool_receipts", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => cityRuns.id, { onDelete: "cascade" }),
+  logicalStepId: text("logical_step_id").notNull(), argumentHash: text("argument_hash").notNull(), toolName: text("tool_name").notNull(),
+  input: jsonb("input").$type<unknown>(),
+  status: text("status").$type<"started" | "completed">().notNull(), output: jsonb("output").$type<unknown>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, t => [uniqueIndex("city_tool_receipt_unique").on(t.runId, t.logicalStepId, t.argumentHash)]);
+
+export const citySearches = pgTable("city_searches", {
+  id: text("id").primaryKey(), ownerId: text("owner_id").notNull().references(() => cityOwners.id, { onDelete: "cascade" }),
+  scenarioId: text("scenario_id").notNull().references(() => cityScenarios.id, { onDelete: "cascade" }),
+  inputRevisionId: text("input_revision_id").notNull().references(() => cityRevisions.id, { onDelete: "cascade" }),
+  runId: text("run_id").references(() => cityRuns.id, { onDelete: "cascade" }),
+  inputHash: text("input_hash").notNull(), result: jsonb("result").$type<SearchResult>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, t => [index("city_searches_owner_idx").on(t.ownerId, t.createdAt)]);
+
+export const cityAnalyses = pgTable("city_analyses", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().unique().references(() => cityRuns.id, { onDelete: "cascade" }),
+  ownerId: text("owner_id").notNull().references(() => cityOwners.id, { onDelete: "cascade" }),
+  sourceRevisionId: text("source_revision_id").notNull().references(() => cityRevisions.id, { onDelete: "cascade" }),
+  document: jsonb("document").$type<AnalysisDocument>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const cityRateWindows = pgTable("city_rate_windows", {
+  key: text("key").primaryKey(), windowStart: timestamp("window_start", { withTimezone: true }).notNull(), count: integer("count").notNull(),
+});
+export const cityWorkerHeartbeats = pgTable("city_worker_heartbeats", {
+  id: text("id").primaryKey(), revision: text("revision").notNull(), seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
 });

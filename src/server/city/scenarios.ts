@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { constraintsSchema, decisionSchema, type Constraints, type Decision } from "@/features/city/contracts";
+import { constraintsSchema, decisionSchema, type Constraints, type Decision, type SearchResult } from "@/features/city/contracts";
 import { AKIM_DATASET, DEFAULT_CONSTRAINTS, EXAMPLE_DECISIONS } from "@/features/city/data/akim-v1";
 import { canonicalDecisions, evaluate } from "@/features/city/engine";
 import type { EvaluationRecord, RevisionRecord, ScenarioList, ScenarioRecord, ScenarioView } from "@/features/city/records";
 import { getDb, type CityDb, type CityTx } from "@/server/db/core";
-import { cityEvaluations, cityOwners, cityRevisions, cityScenarios } from "@/server/db/schema";
+import { cityEvaluations, cityJobs, cityOwners, cityRevisions, cityRuns, cityScenarios } from "@/server/db/schema";
+import { appendEvent } from "./events";
 import { CityError } from "./errors";
 import type { Principal } from "./principal";
 
@@ -21,6 +22,20 @@ export const forkSchema = z.object({ clientMutationId: z.string().uuid(), title:
 export const applySchema = z.object({ revisionId: z.string().uuid(), expectedRevisionId: z.string().uuid(), clientMutationId: z.string().uuid() }).strict();
 
 type Executor = CityDb | CityTx;
+const proofCalculations = new Map<string, Promise<SearchResult>>();
+function calculateProof(variant: "best" | "two-districts") {
+  const existing = proofCalculations.get(variant);
+  if (existing) return existing;
+  const computation = import("@/features/city/search").then(({searchPlans}) => searchPlans({
+    datasetVersion: AKIM_DATASET.version, constraints: {...DEFAULT_CONSTRAINTS, minDirectDistricts: variant === "two-districts" ? 2 : 0}, limit: 1,
+  })).then(result => {
+    if (result.status !== "complete" || !result.candidates.length) throw new CityError("PROVIDER_TIMEOUT", 503);
+    return result;
+  }).catch(error => { proofCalculations.delete(variant); throw error; });
+  // Only two immutable public calculations exist; concurrent starts share their actual work.
+  proofCalculations.set(variant, computation);
+  return computation;
+}
 const ownedWhere = (p: Principal, id: string) => and(eq(cityScenarios.id, id), inArray(cityScenarios.ownerId, p.ownerIds), isNull(cityScenarios.deletedAt));
 function scenarioRecord(row: typeof cityScenarios.$inferSelect): ScenarioRecord {
   if (!row.currentRevisionId) throw new CityError("STORAGE_UNAVAILABLE", 503);
@@ -80,9 +95,7 @@ export async function createScenario(p: Principal, input: z.infer<typeof createS
   // Proof starts are bounded, exact searches. They never use a prewritten optimum.
   if (input.source === "proof") {
     constraints = { ...DEFAULT_CONSTRAINTS, minDirectDistricts: input.proofVariant === "two-districts" ? 2 : 0 };
-    const { searchPlans } = await import("@/features/city/search");
-    const search = await searchPlans({ datasetVersion: AKIM_DATASET.version, constraints, limit: 1 });
-    if (search.status !== "complete" || !search.candidates.length) throw new CityError("PROVIDER_TIMEOUT", 503);
+    const search = await calculateProof(input.proofVariant ?? "best");
     decisions = search.candidates[0].decisions;
   }
   return getDb().transaction(async tx => {
@@ -98,7 +111,7 @@ export async function createScenario(p: Principal, input: z.infer<typeof createS
     return getScenario(p, id, tx);
   });
 }
-export async function saveRevision(p: Principal, id: string, input: z.infer<typeof revisionSchema>): Promise<ScenarioView> {
+export async function saveRevision(p: Principal, id: string, input: z.infer<typeof revisionSchema>, provenance?: { sourceRevisionId: string; cause: "apply" }): Promise<ScenarioView> {
   return getDb().transaction(async tx => {
     const current = await requireScenario(p, id, tx, true);
     const result = evaluate(AKIM_DATASET, input.decisions);
@@ -106,7 +119,7 @@ export async function saveRevision(p: Principal, id: string, input: z.infer<type
     const [duplicate] = await tx.select().from(cityRevisions).where(and(eq(cityRevisions.scenarioId, id), eq(cityRevisions.clientMutationId, input.clientMutationId)));
     if (duplicate) return getScenario(p, id, tx);
     if (current.currentRevisionId !== input.expectedRevisionId) throw new CityError("STALE_REVISION", 409);
-    const saved = await insertRevision(tx, { scenarioId: id, decisions: input.decisions, constraints: input.constraints, intent: input.intent, clientMutationId: input.clientMutationId, parentId: current.currentRevisionId, cause: "edit" });
+    const saved = await insertRevision(tx, { scenarioId: id, decisions: input.decisions, constraints: input.constraints, intent: input.intent, clientMutationId: input.clientMutationId, parentId: current.currentRevisionId, cause: provenance?.cause ?? "edit", sourceRevisionId: provenance?.sourceRevisionId });
     const updated = await tx.update(cityScenarios).set({ currentRevisionId: saved.revision.id, updatedAt: new Date() })
       .where(and(ownedWhere(p, id), eq(cityScenarios.currentRevisionId, input.expectedRevisionId))).returning({ id: cityScenarios.id });
     if (!updated.length) throw new CityError("STALE_REVISION", 409);
@@ -119,8 +132,18 @@ export async function renameScenario(p: Principal, id: string, title: string) {
   return getScenario(p, id);
 }
 export async function deleteScenario(p: Principal, id: string) {
-  const rows = await getDb().update(cityScenarios).set({ deletedAt: new Date(), updatedAt: new Date() }).where(ownedWhere(p, id)).returning({ id: cityScenarios.id });
-  if (!rows.length) throw new CityError("NOT_FOUND", 404);
+  await getDb().transaction(async tx => {
+    await requireScenario(p, id, tx, true);
+    const active = await tx.select().from(cityRuns).where(and(eq(cityRuns.scenarioId, id), inArray(cityRuns.status, ["queued", "running"])));
+    if (active.length) {
+      await tx.update(cityJobs).set({ status: "cancelled", leaseToken: sql`${cityJobs.leaseToken}+1`, leaseUntil: null }).where(inArray(cityJobs.runId, active.map(run => run.id)));
+      await tx.update(cityRuns).set({ status: "cancelled" }).where(inArray(cityRuns.id, active.map(run => run.id)));
+      for (const run of active) await appendEvent(tx, run.id, { kind: "status", status: "cancelled" });
+    }
+    await tx.update(cityJobs).set({ status: "cancelled", leaseToken: sql`${cityJobs.leaseToken}+1`, leaseUntil: null })
+      .where(and(eq(cityJobs.kind, "search"), inArray(cityJobs.ownerId, p.ownerIds), sql`${cityJobs.input}->>'scenarioId' = ${id}`, inArray(cityJobs.status, ["queued", "running"])));
+    await tx.update(cityScenarios).set({ deletedAt: new Date(), updatedAt: new Date() }).where(ownedWhere(p, id));
+  });
   return { deleted: true, id };
 }
 export async function forkScenario(p: Principal, id: string, input: z.infer<typeof forkSchema>) {
@@ -131,7 +154,7 @@ export async function forkScenario(p: Principal, id: string, input: z.infer<type
 }
 export async function applyRevision(p: Principal, id: string, input: z.infer<typeof applySchema>) {
   const selected = await getRevision(p, id, input.revisionId);
-  return saveRevision(p, id, { ...input, decisions: selected.revision.decisions, constraints: selected.revision.constraints, intent: selected.revision.intent });
+  return saveRevision(p, id, { ...input, decisions: selected.revision.decisions, constraints: selected.revision.constraints, intent: selected.revision.intent }, { sourceRevisionId: selected.revision.id, cause: "apply" });
 }
 export async function listScenarios(p: Principal, query: { cursor?: string; q?: string }): Promise<ScenarioList> {
   if (!p.ownerIds.length) return { items: [], nextCursor: null, principalKind: p.kind };

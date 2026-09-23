@@ -28,7 +28,14 @@ recover() {
   trap - ERR
   if [[ "$replacing" == true && "$rollback_compatible" == true && -n "$previous" && -f "$previous/revision" ]]; then
     echo "Release failed; attempting to restore the previous application (database migrations remain)." >&2
-    APP_REVISION=$(cat "$previous/revision") docker compose --project-name solovibe-production --env-file "$root/runtime.env" -f "$previous/compose.production.yaml" up -d --no-deps --no-build --wait --wait-timeout 120 app || echo "Rollback failed; inspect the server immediately." >&2
+    previous_revision=$(cat "$previous/revision")
+    if APP_REVISION="$previous_revision" docker compose --project-name solovibe-production --env-file "$root/runtime.env" -f "$previous/compose.production.yaml" config --services | grep -qx worker; then
+      APP_REVISION="$previous_revision" docker compose --project-name solovibe-production --env-file "$root/runtime.env" -f "$previous/compose.production.yaml" up -d --no-deps --no-build --wait --wait-timeout 120 app worker || echo "Rollback failed; inspect the server immediately." >&2
+      APP_REVISION="$previous_revision" docker compose --project-name solovibe-production --env-file "$root/runtime.env" -f "$previous/compose.production.yaml" exec -T worker node worker-health.cjs || echo "Previous worker is unhealthy." >&2
+    else
+      compose stop worker || true
+      APP_REVISION="$previous_revision" docker compose --project-name solovibe-production --env-file "$root/runtime.env" -f "$previous/compose.production.yaml" up -d --no-deps --no-build --wait --wait-timeout 120 app || echo "Rollback failed; inspect the server immediately." >&2
+    fi
   elif [[ "$replacing" == true ]]; then
     echo "Release failed; automatic rollback requires APP_ROLLBACK_COMPATIBLE=1 and a previous successful release. Inspect the server." >&2
   fi
@@ -36,8 +43,9 @@ recover() {
 }
 trap recover ERR
 replacing=true
-compose up -d --no-deps --no-build --wait --wait-timeout 120 app
-compose exec -T app node -e 'fetch("http://127.0.0.1:3000/api/health").then(async r=>{const h=await r.json();if(!r.ok||h.status!=="ok"||h.revision!==process.env.APP_REVISION)process.exit(1)}).catch(()=>process.exit(1))'
+compose up -d --no-deps --no-build --wait --wait-timeout 120 app worker
+compose exec -T worker node worker-health.cjs
+compose exec -T app node -e 'fetch("http://127.0.0.1:3000/api/health").then(async r=>{const h=await r.json();if(!r.ok||h.status!=="ok"||h.revision!==process.env.APP_REVISION||h.worker?.status!=="ok"||h.worker?.revision!==process.env.APP_REVISION)process.exit(1)}).catch(()=>process.exit(1))'
 printf '%s\n' "$revision" > "$release/revision"
 ln -sfn "$release" "$root/current.next"
 mv -Tf "$root/current.next" "$root/current"

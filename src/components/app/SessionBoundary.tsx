@@ -7,6 +7,7 @@ export function SessionBoundary() {
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/city/owners/session", { cache: "no-store", signal: controller.signal }).catch(() => undefined);
+    if (!("BroadcastChannel" in window)) return () => controller.abort();
     const channel = new BroadcastChannel("citybalance-session");
     channel.onmessage = () => router.refresh();
     return () => { controller.abort(); channel.close(); };

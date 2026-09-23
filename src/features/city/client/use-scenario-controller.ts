@@ -6,6 +6,7 @@ import { evaluate } from "../engine";
 import type { Constraints, Decision, DomainIssue } from "../contracts";
 import type { ApiProblem, ScenarioView } from "../records";
 import { CityApiError, getScenario, renameScenario, saveRevision } from "./api";
+import { draftFingerprint as fingerprint } from "./draft-key";
 
 interface DraftSnapshot {
   fingerprint: string;
@@ -26,10 +27,6 @@ function copyDecisions(decisions: readonly Decision[]): Decision[] {
 
 function copyConstraints(constraints: Constraints): Constraints {
   return structuredClone(constraints);
-}
-
-function fingerprint(decisions: readonly Decision[], constraints: Constraints) {
-  return JSON.stringify([decisions, constraints]);
 }
 
 function mutationId() {
@@ -292,6 +289,19 @@ export function useScenarioController(initial: ScenarioView) {
     setAttemptIssues([]);
   }, [acceptCanonical, setConflict]);
 
+  useEffect(() => {
+    if (!conflict || fingerprint(decisions, constraints) !== fingerprint(conflict.server.revision.decisions, conflict.server.revision.constraints)) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active || fingerprint(decisionsRef.current, constraintsRef.current) !== fingerprint(conflict.server.revision.decisions, conflict.server.revision.constraints)) return;
+      const titleMatches = titleRef.current === conflict.server.scenario.title;
+      acceptCanonical(conflict.server, true, titleMatches);
+      setConflict(null);
+      setSaveStatus(titleMatches ? "saved" : "idle");
+    });
+    return () => { active = false; };
+  }, [acceptCanonical, conflict, constraints, decisions, setConflict]);
+
   const retryLocalVersion = useCallback(async () => {
     const currentConflict = conflictRef.current;
     if (!currentConflict) return false;
@@ -306,8 +316,14 @@ export function useScenarioController(initial: ScenarioView) {
     const request = new AbortController();
     requestsRef.current.add(request);
     try {
+      // A completed AI job or another tab can notify us while our own save is in flight.
+      if (activeRevisionSaveRef.current) await activeRevisionSaveRef.current;
+      if (activeTitleSaveRef.current) await activeTitleSaveRef.current;
+      const observedRevision = viewRef.current.revision.id;
       const latest = await getScenario(viewRef.current.scenario.id, request.signal);
+      if (activeRevisionSaveRef.current) await activeRevisionSaveRef.current;
       if (epoch !== sessionEpochRef.current) return null;
+      if (observedRevision !== viewRef.current.revision.id && latest.revision.id !== viewRef.current.revision.id) return viewRef.current;
       const activeRevisionChanged = latest.revision.id !== viewRef.current.revision.id;
       if (dirtyRef.current && activeRevisionChanged) {
         acceptCanonical(latest, false);
@@ -346,24 +362,13 @@ export function useScenarioController(initial: ScenarioView) {
     channelRef.current = channel;
     channel.onmessage = async (event: MessageEvent<unknown>) => {
       if (!event.data || typeof event.data !== "object" || !("type" in event.data) || event.data.type !== "scenario-invalidated") return;
-      try {
-        const latest = await getScenario(viewRef.current.scenario.id);
-        if (latest.revision.id === viewRef.current.revision.id && latest.scenario.title === viewRef.current.scenario.title) return;
-        if (dirtyRef.current || activeRevisionSaveRef.current || activeTitleSaveRef.current) {
-          acceptCanonical(latest, false);
-          setConflict({ server: latest, localDecisions: copyDecisions(decisionsRef.current), external: true });
-        } else {
-          acceptCanonical(latest, true);
-        }
-      } catch {
-        // A no-secret invalidation is best-effort; normal save/refetch paths still recover.
-      }
+      await refresh();
     };
     return () => {
       channelRef.current = null;
       channel.close();
     };
-  }, [acceptCanonical, setConflict]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!("BroadcastChannel" in window)) return;

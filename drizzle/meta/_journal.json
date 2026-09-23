@@ -22,6 +22,27 @@
       "when": 1790156514606,
       "tag": "0002_woozy_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790158675112,
+      "tag": "0003_unique_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790158883867,
+      "tag": "0004_past_king_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790159042792,
+      "tag": "0005_lumpy_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

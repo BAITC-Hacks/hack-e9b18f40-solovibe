@@ -1,17 +1,18 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, Coins, Pencil, Scale, Server, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, CheckCircle2, Coins, Pencil, Scale, Server, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type ReactNode, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import type { Decision, DistrictId, DomainIssue } from "../contracts";
 import type { ScenarioView } from "../records";
 import { useScenarioController } from "../client/use-scenario-controller";
 import { ScenarioControllerProvider } from "../client/scenario-context";
-import { Catalogue } from "./Catalogue";
+import { Catalogue, type ChooseResult } from "./Catalogue";
 import { CityBoard } from "./CityBoard";
 import { DecisionTray } from "./DecisionTray";
 import { Alert, Button, LanguageSelector, SaveState, cn } from "@/components/ui";
 import { Logo } from "@/components/brand";
+import { AccountControl } from "@/components/app/AccountControl";
 import { Link, useRouter } from "@/i18n/navigation";
 import "../board.css";
 
@@ -25,6 +26,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
   const tDomain = useTranslations("domain");
   const tErrors = useTranslations("errors");
   const tBoard = useTranslations("board");
+  const tAssistant = useTranslations("assistant");
   const tMeasures = useTranslations("measures");
   const tDistricts = useTranslations("districts");
   const controller = useScenarioController(initial);
@@ -32,6 +34,27 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
   const [selectedDistrictId, setSelectedDistrictId] = useState<DistrictId>("yesil");
   const [replacementSlot, setReplacementSlot] = useState<number | null>(null);
   const [replacementPrompt, setReplacementPrompt] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const chatCloseRef = useRef<HTMLButtonElement>(null);
+  const chatLaunchRef = useRef<HTMLButtonElement>(null);
+
+  const closeChat = useCallback(() => {
+    setChatOpen(false);
+    requestAnimationFrame(() => chatLaunchRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!chatOpen) return;
+    const frame = requestAnimationFrame(() => chatCloseRef.current?.focus());
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeChat();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [chatOpen, closeChat]);
   async function navigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
@@ -45,21 +68,30 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
     return tDomain(issue.code, values);
   }
 
-  function addOrReplace(decision: Decision) {
+  function focusCatalogue() {
+    const heading = document.getElementById("catalogue-title");
+    if (!heading) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    heading.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    requestAnimationFrame(() => heading.focus({ preventScroll: true }));
+  }
+
+  function addOrReplace(decision: Decision): ChooseResult {
     let next: Decision[];
-    if (controller.decisions.length === 5) {
-      if (replacementSlot === null) {
-        setReplacementPrompt(true);
-        return;
-      }
+    if (replacementSlot !== null) {
       next = controller.decisions.map((current, index) => index === replacementSlot ? decision : current);
+    } else if (controller.decisions.length === 5) {
+      setReplacementPrompt(true);
+      return "need-replacement";
     } else {
       next = [...controller.decisions, decision];
     }
     if (controller.trySetDecisions(next)) {
       setReplacementSlot(null);
       setReplacementPrompt(false);
+      return "accepted";
     }
+    return "invalid";
   }
 
   function removeDecision(slot: number) {
@@ -88,9 +120,11 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
         <nav className="cb-main-nav" aria-label={tBoard("home")}>
           <Link href="/" onClick={event => navigate(event, "/")}>{tBoard("home")}</Link>
           <Link href="/scenarios" onClick={event => navigate(event, "/scenarios")}>{tBoard("library")}</Link>
-          <Link href={`/sign-in?next=/city/${initial.scenario.id}`} onClick={event => navigate(event, `/sign-in?next=/city/${initial.scenario.id}`)}><UserRound className="size-4" aria-hidden="true" />{tBoard("account")}</Link>
         </nav>
-        <LanguageSelector label={tCommon("language")} beforeChange={controller.flush} />
+        <div className="cb-header-actions">
+          <AccountControl returnTo={`/city/${initial.scenario.id}`} beforeNavigate={controller.flush} />
+          <LanguageSelector label={tCommon("language")} beforeChange={controller.flush} />
+        </div>
       </header>
 
       <main className="cb-workspace">
@@ -115,6 +149,8 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
           />
         </div>
 
+        <div className="cb-workspace-columns">
+        <div className="cb-manual-workspace">
         <section className="cb-summary" aria-labelledby="plan-summary-title" aria-live="polite">
           <div className="cb-summary-heading">
             <h1 id="plan-summary-title">{tBoard("planSummary")}</h1>
@@ -130,7 +166,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
             <div className={cn(!preview.complete && "cb-metric-muted")}>
               <Scale aria-hidden="true" />
               <span>{tCommon("score")}</span>
-              <strong>{preview.complete && preview.score !== null ? preview.score.toFixed(2) : "—"}</strong>
+              <strong>{preview.complete && preview.score !== null ? preview.score.toFixed(2) : "…"}</strong>
               <small>{preview.complete ? tBoard("officialResult") : tBoard("draftScoreHint")}</small>
             </div>
             <div>
@@ -144,7 +180,7 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
             <div className="cb-preview-note">
               <span>{tBoard("preview")}</span>
               <ArrowRight className="size-4" aria-hidden="true" />
-              <span>{tBoard("savedVersion")}: {savedEvaluation.score === null ? "—" : savedEvaluation.score.toFixed(2)}</span>
+              <span>{tBoard("savedVersion")}: {savedEvaluation.score === null ? "…" : savedEvaluation.score.toFixed(2)}</span>
             </div>
           ) : (
             <div className="cb-preview-note cb-preview-note-saved">
@@ -206,6 +242,11 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
             onReplacementSlotChange={(slot) => {
               setReplacementSlot(slot);
               setReplacementPrompt(false);
+              if (slot !== null) focusCatalogue();
+            }}
+            onBrowseCatalogue={() => {
+              setReplacementSlot(null);
+              focusCatalogue();
             }}
             onRemove={removeDecision}
           />
@@ -214,11 +255,42 @@ export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
         <Catalogue
           decisions={controller.decisions}
           replacementSlot={replacementSlot}
+          attemptIssues={controller.attemptIssues}
+          formatIssue={issueText}
           onChoose={addOrReplace}
           onNeedReplacement={() => setReplacementPrompt(true)}
         />
+        </div>
 
-        {assistant ? <aside className="cb-assistant-slot">{assistant}</aside> : null}
+        {assistant ? (
+          <aside id="city-conversation" className={cn("cb-conversation-column", chatOpen && "cb-conversation-open")}>
+            <button
+              ref={chatCloseRef}
+              type="button"
+              className="cb-chat-close"
+              aria-label={tAssistant("closeConversation")}
+              onClick={closeChat}
+            >
+              <X aria-hidden="true" />
+            </button>
+            {assistant}
+          </aside>
+        ) : null}
+        </div>
+
+        {assistant ? (
+          <button
+            ref={chatLaunchRef}
+            type="button"
+            className="cb-chat-launcher"
+            aria-controls="city-conversation"
+            aria-expanded={chatOpen}
+            onClick={() => setChatOpen(true)}
+          >
+            <Bot aria-hidden="true" />
+            {tAssistant("discussPlan")}
+          </button>
+        ) : null}
       </main>
     </div>
     </ScenarioControllerProvider>

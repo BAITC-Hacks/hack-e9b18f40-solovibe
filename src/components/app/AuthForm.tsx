@@ -16,7 +16,7 @@ export function AuthForm({ mode, next }: { mode: "sign-in" | "sign-up"; next: st
   const [pending,setPending]=useState(false); const [error,setError]=useState<string|null>(null); const [signed,setSigned]=useState(false);
   async function claim() {
     await cityApi("/owners/claim",{method:"POST",body:{}});
-    const channel=new BroadcastChannel("citybalance-session"); channel.postMessage({changed:true}); channel.close();
+    if("BroadcastChannel" in window){const channel=new BroadcastChannel("citybalance-session"); channel.postMessage({changed:true}); channel.close();}
     router.replace(next); router.refresh();
   }
   async function submit(event:React.FormEvent) {

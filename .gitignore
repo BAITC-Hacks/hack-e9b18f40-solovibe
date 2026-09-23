@@ -8,6 +8,7 @@ node_modules/
 *.key
 *.tsbuildinfo
 .checks/
+agents/TESTING.md
 storage/
 *.log
 video/.hyperframes/

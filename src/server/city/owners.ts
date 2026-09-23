@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
-import { cityOwners } from "@/server/db/schema";
+import { cityJobs, cityOwners, cityRuns } from "@/server/db/schema";
 import { CityError } from "./errors";
 import type { Principal } from "./principal";
 
@@ -54,8 +54,12 @@ export async function claimGuest() {
   const token = jar.get(COOKIE)?.value;
   if (token && /^[a-f0-9]{64}$/.test(token)) {
     await getDb().transaction(async tx => {
-      await tx.update(cityOwners).set({ userId: session.user.id, guestTokenHash: null, expiresAt: null, lastSeenAt: new Date() })
-        .where(and(eq(cityOwners.guestTokenHash, hashToken(token)), isNull(cityOwners.userId), gt(cityOwners.expiresAt, new Date())));
+      const claimed = await tx.update(cityOwners).set({ userId: session.user.id, guestTokenHash: null, expiresAt: null, lastSeenAt: new Date() })
+        .where(and(eq(cityOwners.guestTokenHash, hashToken(token)), isNull(cityOwners.userId), gt(cityOwners.expiresAt, new Date()))).returning({id:cityOwners.id});
+      for (const owner of claimed) {
+        await tx.update(cityRuns).set({quotaKey:`account:${session.user.id}`}).where(eq(cityRuns.ownerId,owner.id));
+        await tx.update(cityJobs).set({quotaKey:`account:${session.user.id}`}).where(eq(cityJobs.ownerId,owner.id));
+      }
     });
   }
   jar.set(COOKIE, "", { ...cookieOptions(), maxAge: 0 });

@@ -14,6 +14,7 @@ try {
   if (!/^\/[a-zA-Z0-9_/-]+$/.test(c.root || '') || c.root === '/' || c.root.includes('..')) throw new Error('Invalid deployment root');
   if (git('status', '--porcelain')) throw new Error('Commit all code changes before deployment.');
   const sha = git('rev-parse', 'HEAD');
+  process.env.APP_REVISION = sha;
   if (git('ls-remote', '--exit-code', 'origin', 'refs/heads/main').split(/\s/)[0] !== sha) throw new Error('HEAD must equal pushed origin/main.');
   const options = ['-p', String(c.port), '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ServerAliveInterval=30', '-o', 'RequestTTY=no'];
   if (c.key) options.push('-i', c.key, '-o', 'IdentitiesOnly=yes');
@@ -46,14 +47,16 @@ try {
   });
   const response = await fetch(new URL('/api/health', origin), { signal: AbortSignal.timeout(20000) });
   const health = await response.json();
-  if (!response.ok || health.status !== 'ok' || health.revision !== sha) throw new Error('Public health does not confirm the deployed revision.');
+  if (!response.ok || health.status !== 'ok' || health.revision !== sha || health.worker?.status !== 'ok' || health.worker?.revision !== sha) throw new Error('Public health does not confirm matching app and worker revisions.');
   }
   async function localDeploy() {
     const run = (args) => runQuiet('deploy-local', 'docker', ['compose', ...args], { printSuccess: false });
     await run(['build', 'app']);
     await run(['up', '-d', '--wait', '--wait-timeout', '120', 'db']);
     await run(['run', '-T', '--rm', '--no-deps', 'migrate']);
-    await run(['up', '-d', '--no-deps', '--no-build', '--wait', '--wait-timeout', '120', 'app']);
+    await run(['up', '-d', '--no-deps', '--no-build', '--wait', '--wait-timeout', '120', 'app', 'worker']);
+    await run(['exec', '-T', 'worker', 'node', 'worker-health.cjs']);
+    await run(['exec', '-T', 'app', 'node', '-e', 'fetch("http://127.0.0.1:3000/api/health").then(async r=>{const h=await r.json();if(!r.ok||h.revision!==process.env.APP_REVISION||h.worker?.revision!==process.env.APP_REVISION||h.worker?.status!=="ok")process.exit(1)}).catch(()=>process.exit(1))']);
   }
   const results = await Promise.allSettled([localDeploy(), remoteDeploy()]);
   const failures = results.flatMap((result, index) => result.status === 'rejected' ? [`${index === 0 ? 'local' : 'server'}: ${result.reason.message}`] : []);

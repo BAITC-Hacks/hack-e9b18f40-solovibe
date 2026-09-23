@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, RotateCcw, Trash2 } from "lucide-react";
+import { MapPin, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Decision } from "../contracts";
 import { AKIM_DATASET } from "../data/akim-v1";
@@ -10,6 +10,7 @@ export interface DecisionTrayProps {
   decisions: readonly Decision[];
   replacementSlot: number | null;
   onReplacementSlotChange: (slot: number | null) => void;
+  onBrowseCatalogue: () => void;
   onRemove: (slot: number) => void;
 }
 
@@ -17,6 +18,7 @@ export function DecisionTray({
   decisions,
   replacementSlot,
   onReplacementSlotChange,
+  onBrowseCatalogue,
   onRemove,
 }: DecisionTrayProps) {
   const tMeasures = useTranslations("measures");
@@ -56,20 +58,20 @@ export function DecisionTray({
                     <span>
                       <MapPin className="size-3.5" aria-hidden="true" />
                       {decision.districtId ? tDistricts(decision.districtId) : tCommon("city")}
-                      <span aria-hidden="true">·</span>
+                      <span aria-hidden="true">,</span>
                       {measure.cost} {tCommon("units")}
                     </span>
                   </div>
-                  {decisions.length === 5 ? (
-                    <button
-                      type="button"
-                      className="cb-slot-action"
-                      aria-pressed={selected}
-                      onClick={() => onReplacementSlotChange(selected ? null : slot)}
-                    >
-                      {selected ? tBoard("replacementSelected") : tBoard("replaceHere")}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="cb-slot-action"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      onReplacementSlotChange(selected ? null : slot);
+                    }}
+                  >
+                    {selected ? tBoard("replacementSelected") : tBoard("replaceHere")}
+                  </button>
                   <button
                     type="button"
                     className="cb-icon-button"
@@ -80,7 +82,13 @@ export function DecisionTray({
                   </button>
                 </>
               ) : (
-                <span className="cb-empty-label">{tBoard("emptySlot")}</span>
+                <button type="button" className="cb-empty-action" onClick={onBrowseCatalogue}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  <span>
+                    <strong>{tBoard("emptySlotAction")}</strong>
+                    <small>{tBoard("emptySlot")}</small>
+                  </span>
+                </button>
               )}
             </li>
           );

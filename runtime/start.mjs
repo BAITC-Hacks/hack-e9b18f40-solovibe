@@ -8,7 +8,9 @@ if (existsSync("public")) cpSync("public", ".next/standalone/public", { recursiv
 const server = spawn(process.execPath, [".next/standalone/server.js"], {
   stdio: "inherit",
   windowsHide: true,
-  env: { ...process.env, HOSTNAME: "127.0.0.1", PORT: process.env.APP_PORT || "3000" }
+  env: { ...process.env, CITY_REQUIRE_WORKER: "1", HOSTNAME: "127.0.0.1", PORT: process.env.APP_PORT || "3000" }
 });
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => server.kill(signal));
-server.on("exit", code => { process.exitCode = code ?? 1; });
+const worker = spawn(process.execPath, [".next/city-worker.cjs"], { stdio: "inherit", windowsHide: true, env: process.env });
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { server.kill(signal); worker.kill(signal); });
+server.on("exit", code => { worker.kill(); process.exitCode = code ?? 1; });
+worker.on("exit", code => { server.kill(); process.exitCode = code ?? 1; });

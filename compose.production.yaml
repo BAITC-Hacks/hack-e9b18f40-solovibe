@@ -5,6 +5,8 @@ x-app-environment: &app-environment
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set the server runtime environment}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+  CITY_REQUIRE_WORKER: "1"
+  CITY_AI_NETWORK_HOURLY_LIMIT: ${CITY_AI_NETWORK_HOURLY_LIMIT:-60}
   STORAGE_BACKEND: ${STORAGE_BACKEND:-}
   STORAGE_LOCAL_DIR: /app/storage
   R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
@@ -55,6 +57,23 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    image: solovibe-app:${APP_REVISION:?Deploy an exact Git SHA}
+    command: ["node", "city-worker.cjs"]
+    environment:
+      <<: *app-environment
+      CITY_WORKER_ID: primary
+    volumes: [file-data:/app/storage]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "worker-health.cjs"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     restart: unless-stopped
 
 volumes:

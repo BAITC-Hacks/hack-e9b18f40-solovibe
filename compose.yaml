@@ -5,6 +5,8 @@ x-app-environment: &app-environment
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Run pnpm env:init}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+  CITY_REQUIRE_WORKER: "1"
+  CITY_AI_NETWORK_HOURLY_LIMIT: ${CITY_AI_NETWORK_HOURLY_LIMIT:-60}
   STORAGE_BACKEND: ${STORAGE_BACKEND:-}
   STORAGE_LOCAL_DIR: /app/storage
   R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
@@ -38,7 +40,10 @@ services:
     restart: "no"
   app:
     image: solovibe-local:dev
-    build: .
+    build:
+      context: .
+      args:
+        APP_REVISION: ${APP_REVISION:-local}
     environment: *app-environment
     ports: ["127.0.0.1:${APP_PORT:-3000}:3000"]
     volumes: [file-data:/app/storage]
@@ -50,6 +55,22 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
+    restart: unless-stopped
+  worker:
+    image: solovibe-local:dev
+    command: ["node", "city-worker.cjs"]
+    environment:
+      <<: *app-environment
+      CITY_WORKER_ID: primary
+    volumes: [file-data:/app/storage]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "node", "worker-health.cjs"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     restart: unless-stopped
 volumes:
   postgres-data:

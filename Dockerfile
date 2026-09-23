@@ -21,6 +21,8 @@ COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/drizzle ./drizzle
 COPY --from=build --chown=node:node /app/migrate.cjs ./migrate.cjs
+COPY --from=build --chown=node:node /app/.next/city-worker.cjs ./city-worker.cjs
+COPY --from=build --chown=node:node /app/.next/worker-health.cjs ./worker-health.cjs
 COPY --from=build --chown=node:node /app/runtime/start-container.sh ./start-container.sh
 RUN mkdir -p /app/storage && chown node:node /app/storage
 USER node
