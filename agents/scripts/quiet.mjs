@@ -38,7 +38,11 @@ export function runQuiet(label, command, args, { printSuccess = true } = {}) {
 }
 
 export function pnpmCommand(script) {
-  const candidates = [process.env.npm_execpath, ...(process.env.PATH || '').split(delimiter).flatMap(dir => [join(dir, 'node_modules/pnpm/bin/pnpm.cjs'), join(dir, 'node_modules/corepack/dist/pnpm.js'), join(dir, 'pnpm.cjs')])];
+  const dirs = (process.env.PATH || '').split(delimiter);
+  // Prefer an installed pnpm over an older Corepack shim earlier on Windows PATH.
+  const candidates = [process.env.npm_execpath,
+    ...dirs.flatMap(dir => [join(dir, 'node_modules/pnpm/bin/pnpm.cjs'), join(dir, 'pnpm.cjs')]),
+    ...dirs.map(dir => join(dir, 'node_modules/corepack/dist/pnpm.js'))];
   const cli = candidates.find(candidate => candidate && /pnpm.*\.(?:c?js)$/i.test(candidate) && existsSync(candidate));
   if (!cli) throw new Error("Cannot locate the installed pnpm JS entry; install pnpm 10.32.1 and expose it on PATH.");
   return [process.execPath, [cli, "run", script]];

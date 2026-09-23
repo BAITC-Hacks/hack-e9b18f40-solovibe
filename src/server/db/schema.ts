@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -45,3 +45,13 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("verification_identifier_idx").on(table.identifier)]);
+
+// Dataset versions are append-only. Startup verifies an existing hash rather than replacing it.
+export const cityDatasets = pgTable("city_datasets", {
+  id: text("id").primaryKey(),
+  sourceHash: text("source_hash").notNull(),
+  rulesVersion: text("rules_version").notNull(),
+  evaluatorVersion: text("evaluator_version").notNull(),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

@@ -14,6 +14,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint src runtime next.config.ts drizzle.config.ts eslint.config.mjs postcss.config.mjs",
     "check": "pnpm typecheck && pnpm lint",
+    "test:domain": "tsx --test src/features/city/__tests__/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx runtime/migrate.ts",
     "db:studio": "drizzle-kit studio",

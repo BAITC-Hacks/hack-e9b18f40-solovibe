@@ -1,25 +1,13 @@
 # Current state
 
-CityBalance concept, original identity and complete scope are approved.
-Approved slogan: «Решайте, каким станет город.»
-This concept/planning chat is complete; implementation belongs to separate user-opened MAIN chats.
-The user-approved rule choice is the dataset: budget100, exactly5 unique measures, <=2 per direction; all-five coverage is optional.
-
-PLAN.md is the complete execution index/contracts/criteria mapping; stages/01–06 contain16 integrated commit blocks with ordered tasks and acceptance.
-The bounded concept challenge is resolved through visible price-of-priority, exact substitutions/evidence, sensitivity repair and reusable decisions.
-First-viewport proof: direct investment in two districts costs0.239035 Score versus unconstrained best; production calculations must drive the visual.
-PROJECT is consolidated to approved facts, full feature map and honest status: no product implementation yet.
-Case text, exact weights and verified arithmetic are in knowledge/HACKATHON.md; original dataset is knowledge/cases/akim-dataset.md.
-The logo SVG now uses the approved slogan.
-
-Next MAIN assignment: stage01, file agents/memory/stages/01-core.md, first product block01.1.
-Read AGENTS, INDEX, this STATE, PROJECT and PLAN shared contracts, then stage01 only and its named guidance.
-Before product edits, checkpoint the known finished planning package to reconcile clean-entry rules; these uncommitted files are authorized work, not unexpected changes.
-Then begin01.1 with src/features/city/contracts.ts and runtime dataset/evaluator/search, reusing the prepared stack.
-Finish01.1–01.3 including real AI→tools→saved alternative proof, then hand off02; do not execute all stages in that chat.
-
-Planning verification: one dependency/coverage pass completed, local Markdown links resolve, all six stages and16 blocks exist.
-The mathematical audit is planning evidence, not verification of an implemented app. No app builds/provider calls/deployments or Git operations were run here.
-Known planning paths: knowledge/HACKATHON.md, knowledge/cases/akim-dataset.md, memory/PLAN.md, memory/PROJECT.md, memory/STATE.md, memory/stages/*.md, work/city-balance-logo.svg.
-No active file-writing workers or processes were started in planning; the prior dataset_audit SUBAGENT finished.
-No additional approval or material product decision is pending. Implementation will verify actual runtime/provider readiness without redoing preparation.
+CityBalance concept, identity and six-stage scope are approved. MAIN executes stage01 only (01.1–01.3).
+Entry was clean on origin/main; planning already committed, no duplicate housekeeping checkpoint.
+Block01.1 complete: exact evaluator/search/evidence, immutable PostgreSQL seed, ru/kk/en labels, original logo/sculpture and accessible primitives.
+Domain and visual workers handed over and stopped. No active writers or development server.
+V1/V2/V4 tests passed: baseline52.557680/example95/56.543070,694395/max57.236735, all-five68200/max56.344510, two-district56.997700 and infeasible all-five/zero-critical.
+Full search6–7s locally, bounded yielding every2048 candidates; RSS growth12MiB. Deadline/cancel/order/constraints and source hashes checked.
+Migration plus repeated seed passed on actual local PostgreSQL15432; focused domain/visual TS and ESLint passed.
+MAIN next: run01.1 checkpoint, resolve only concrete failures, confirm deployed revision. Then implement01.2 owned board/revisions/auth/library.
+Use bundled Node24.19.0 at C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin first in PATH; system Node is too old.
+Runtime env has DB/auth/OpenAI configuration, live provider acceptance not yet attempted. No missing approval or product decision.
+Finish01.2 and live durable AI01.3 before handing off02. No later stage implementation in this chat.
