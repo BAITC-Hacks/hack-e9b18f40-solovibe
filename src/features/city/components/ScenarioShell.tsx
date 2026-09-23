@@ -1,310 +1,75 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bot, CheckCircle2, Coins, Pencil, Scale, Server, X } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
-import {DISTRICT_IDS,INDICATOR_IDS,type Decision,type DistrictId,type DomainIssue} from "../contracts";
-import type { ScenarioView } from "../records";
-import { useScenarioController } from "../client/use-scenario-controller";
-import { ScenarioControllerProvider } from "../client/scenario-context";
-import { Catalogue, type ChooseResult } from "./Catalogue";
-import { CityBoard } from "./CityBoard";
-import { DecisionTray } from "./DecisionTray";
-import { WorkshopPanel } from './workshop/WorkshopPanel';
+import {AlertTriangle,ArrowLeft,ArrowRight,Bot,Coins,Download,FileText,FlaskConical,GitCompareArrows,LayoutGrid,Pencil,Scale,Server,Share2,X} from 'lucide-react';
+import {useLocale,useTranslations} from 'next-intl';
+import {useCallback,useEffect,useRef,useState,type ReactNode,type MouseEvent} from 'react';
+import {DISTRICT_IDS,INDICATOR_IDS,type Decision,type DistrictId,type DomainIssue} from '../contracts';
+import type {ScenarioView} from '../records';
+import {useScenarioController} from '../client/use-scenario-controller';
+import {ScenarioControllerProvider} from '../client/scenario-context';
+import {Catalogue,type ChooseResult} from './Catalogue';
+import {CityBoard} from './CityBoard';
+import {DecisionTray} from './DecisionTray';
+import {openIndicatorEvidence} from './evidence/EvidencePanel';
+import {WorkshopPanel} from './workshop/WorkshopPanel';
 import {StressPanel} from './stress/StressPanel';
 import {DeliveryPanel} from './sharing/DeliveryPanel';
-import { Alert, Button, LanguageSelector, SaveState, cn } from "@/components/ui";
-import { Logo } from "@/components/brand";
-import { AccountControl } from "@/components/app/AccountControl";
-import { Link, useRouter } from "@/i18n/navigation";
-import "../board.css";
+import {Alert,Button,LanguageSelector,SaveState,cn} from '@/components/ui';
+import {Logo} from '@/components/brand';
+import {AccountControl} from '@/components/app/AccountControl';
+import {Link,useRouter} from '@/i18n/navigation';
+import '../board.css';
 
-export interface ScenarioShellProps {
-  initial: ScenarioView;
-  assistant?: ReactNode;
-}
+const viewIds=['plan','compare','stress','deliver'] as const;
+type WorkspaceView=typeof viewIds[number];
+type DeliverySection='files'|'share'|'teams';
+const icons={plan:LayoutGrid,compare:GitCompareArrows,stress:FlaskConical,deliver:FileText};
+export interface ScenarioShellProps{initial:ScenarioView;assistant?:ReactNode;initialWorkspace?:WorkspaceView;initialDeliverySection?:DeliverySection}
 
-export function ScenarioShell({ initial, assistant }: ScenarioShellProps) {
-  const tCommon = useTranslations("common");
-  const tDomain = useTranslations("domain");
-  const tErrors = useTranslations("errors");
-  const tBoard = useTranslations("board");
-  const tAssistant = useTranslations("assistant");
-  const tMeasures = useTranslations("measures");
-  const tWorkflow=useTranslations('workflow');
-  const tDistricts = useTranslations("districts");
-  const controller = useScenarioController(initial);
-  const router = useRouter();
-  const [selectedDistrictId, setSelectedDistrictId] = useState<DistrictId>("yesil");
-  const [replacementSlot, setReplacementSlot] = useState<number | null>(null);
-  const [replacementPrompt, setReplacementPrompt] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const chatCloseRef = useRef<HTMLButtonElement>(null);
-  const chatLaunchRef = useRef<HTMLButtonElement>(null);
-  useEffect(()=>{const open=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.revisionId!==controller.serverView.revision.id||!DISTRICT_IDS.includes(detail.districtId)||!INDICATOR_IDS.includes(detail.indicatorId))return;setSelectedDistrictId(detail.districtId);setChatOpen(false);requestAnimationFrame(()=>{const node=document.getElementById(`evidence-${detail.districtId}-${detail.indicatorId}`) as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});node.querySelector('summary')?.focus();}});};window.addEventListener('city-evidence',open);return()=>window.removeEventListener('city-evidence',open);},[controller.serverView.revision.id]);
-
-  const closeChat = useCallback(() => {
-    setChatOpen(false);
-    requestAnimationFrame(() => chatLaunchRef.current?.focus());
-  }, []);
-
-  useEffect(() => {
-    if (!chatOpen) return;
-    const frame = requestAnimationFrame(() => chatCloseRef.current?.focus());
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeChat();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [chatOpen, closeChat]);
-  async function navigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-    event.preventDefault();
-    if (await controller.flush()) router.push(href);
-  }
-
-  function issueText(issue: DomainIssue) {
-    const values = Object.fromEntries(
-      Object.entries(issue.params).filter((entry): entry is [string, string | number] => typeof entry[1] !== "boolean"),
-    );
-    return tDomain(issue.code, values);
-  }
-
-  function focusCatalogue() {
-    const heading = document.getElementById("catalogue-title");
-    if (!heading) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    heading.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-    requestAnimationFrame(() => heading.focus({ preventScroll: true }));
-  }
-
-  function addOrReplace(decision: Decision): ChooseResult {
-    let next: Decision[];
-    if (replacementSlot !== null) {
-      next = controller.decisions.map((current, index) => index === replacementSlot ? decision : current);
-    } else if (controller.decisions.length === 5) {
-      setReplacementPrompt(true);
-      return "need-replacement";
-    } else {
-      next = [...controller.decisions, decision];
-    }
-    if (controller.trySetDecisions(next)) {
-      setReplacementSlot(null);
-      setReplacementPrompt(false);
-      return "accepted";
-    }
-    return "invalid";
-  }
-
-  function removeDecision(slot: number) {
-    const next = controller.decisions.filter((_, index) => index !== slot);
-    if (controller.trySetDecisions(next)) {
-      setReplacementSlot(null);
-      setReplacementPrompt(false);
-    }
-  }
-
-  const savedEvaluation = controller.serverView.evaluation.result;
-  const preview = controller.preview;
-  const scoreChanged = preview.score !== savedEvaluation.score;
-
-  if (controller.sessionChanging) {
-    return <div className="cb-session-changing" aria-busy="true">{tCommon("loading")}</div>;
-  }
-
-  return (
-    <ScenarioControllerProvider value={controller}>
-    <div className="cb-shell">
-      <header className="cb-shell-header">
-        <Link href="/" className="cb-brand-link" aria-label="CityBalance" onClick={event => navigate(event, "/")}>
-          <Logo />
-        </Link>
-        <nav className="cb-main-nav" aria-label={tBoard("home")}>
-          <Link href="/" onClick={event => navigate(event, "/")}>{tBoard("home")}</Link>
-          <Link href="/scenarios" onClick={event => navigate(event, "/scenarios")}>{tBoard("library")}</Link>
-        </nav>
-        <div className="cb-header-actions">
-          <AccountControl returnTo={`/city/${initial.scenario.id}`} beforeNavigate={controller.flush} />
-          <LanguageSelector label={tCommon("language")} beforeChange={controller.flush} />
-        </div>
-      </header>
-
-      <main className="cb-workspace">
-        <div className="cb-title-row">
-          <label className="cb-title-field">
-            <span className="sr-only">{tBoard("titleLabel")}</span>
-            <Pencil className="size-5" aria-hidden="true" />
-            <input
-              value={controller.title}
-              onChange={(event) => controller.setTitle(event.target.value)}
-              aria-label={tBoard("titleLabel")}
-            />
-          </label>
-          <SaveState
-            status={controller.saveStatus}
-            labels={{
-              idle: tCommon("unsaved"),
-              saving: tCommon("saving"),
-              saved: tCommon("saved"),
-              error: tBoard("saveFailed"),
-            }}
-          />
-        </div>
-
-        <div className="cb-workspace-columns">
-        <div className="cb-manual-workspace">
-        <section className="cb-summary" aria-labelledby="plan-summary-title" aria-live="polite">
-          <div className="cb-summary-heading">
-            <h1 id="plan-summary-title">{tBoard("planSummary")}</h1>
-            <span>{tBoard("preview")}</span>
-          </div>
-          <div className="cb-summary-metrics">
-            <div>
-              <Coins aria-hidden="true" />
-              <span>{tCommon("budget")}</span>
-              <strong>{preview.cost} / 100</strong>
-              <small>{tCommon("remaining")}: {preview.remaining} {tCommon("units")}</small>
-            </div>
-            <div className={cn(!preview.complete && "cb-metric-muted")}>
-              <Scale aria-hidden="true" />
-              <span>{tCommon("score")}</span>
-              <strong>{preview.complete && preview.score !== null ? preview.score.toFixed(2) : "…"}</strong>
-              <small>{preview.complete ? tBoard("officialResult") : tBoard("draftScoreHint")}</small>
-            </div>
-            <div>
-              <AlertTriangle aria-hidden="true" />
-              <span>{tBoard("criticalPairs")}</span>
-              <strong>{preview.criticalPairs.length}</strong>
-              <small>{preview.complete ? tBoard("officialResult") : tBoard("draftResult")}</small>
-            </div>
-          </div>
-          {controller.isDirty || scoreChanged ? (
-            <div className="cb-preview-note">
-              <span>{tBoard("preview")}</span>
-              <ArrowRight className="size-4" aria-hidden="true" />
-              <span>{tBoard("savedVersion")}: {savedEvaluation.score === null ? "…" : savedEvaluation.score.toFixed(2)}</span>
-            </div>
-          ) : (
-            <div className="cb-preview-note cb-preview-note-saved">
-              <CheckCircle2 className="size-4" aria-hidden="true" />
-              {tBoard("savedVersion")}
-            </div>
-          )}
-        </section>
-
-        {replacementPrompt ? <Alert tone="warning">{tBoard("selectReplacementFirst")}</Alert> : null}
-        {controller.attemptIssues.map((issue, index) => (
-          <Alert key={`${issue.code}-${index}`} tone="warning">{issueText(issue)}</Alert>
-        ))}
-        {controller.problem ? (
-          <Alert tone="danger" title={tBoard("saveFailed")}>
-            <p>{tErrors(controller.problem.code, controller.problem.params)}</p>
-            <Button variant="secondary" size="compact" onClick={() => void controller.retrySave()} className="mt-3">
-              {tBoard("retrySave")}
-            </Button>
-          </Alert>
-        ) : null}
-
-        {controller.conflict ? (
-          <section className="cb-conflict" aria-labelledby="conflict-title">
-            <div className="cb-conflict-heading">
-              <AlertTriangle aria-hidden="true" />
-              <div>
-                <h2 id="conflict-title">{tBoard("conflictTitle")}</h2>
-                <p>{controller.conflict.external ? tBoard("externalChange") : tBoard("conflictBody")}</p>
-              </div>
-            </div>
-            <div className="cb-conflict-compare">
-              <div>
-                <h3>{tBoard("localVersion")}</h3>
-                <ul>{controller.conflict.localDecisions.map((decision) => <li key={decision.measureId}>{tMeasures(decision.measureId)}{decision.districtId ? `, ${tDistricts(decision.districtId)}` : ""}</li>)}</ul>
-              </div>
-              <div>
-                <h3>{tBoard("serverVersion")}</h3>
-                <ul>{controller.conflict.server.revision.decisions.map((decision) => <li key={decision.measureId}>{tMeasures(decision.measureId)}{decision.districtId ? `, ${tDistricts(decision.districtId)}` : ""}</li>)}</ul>
-              </div>
-            </div>
-            <div className="cb-conflict-actions">
-              <Button variant="secondary" onClick={controller.useServerVersion}><Server className="size-4" aria-hidden="true" />{tBoard("useServer")}</Button>
-              <Button onClick={() => void controller.retryLocalVersion()}>{tBoard("retryLocal")}</Button>
-            </div>
-          </section>
-        ) : null}
-
-        <div className="cb-primary-grid">
-          <CityBoard
-            evaluation={preview}
-            decisions={controller.decisions}
-            selectedDistrictId={selectedDistrictId}
-            onSelectedDistrictChange={setSelectedDistrictId}
-          />
-          <DecisionTray
-            decisions={controller.decisions}
-            constraints={controller.constraints}
-            replacementSlot={replacementSlot}
-            onReplacementSlotChange={(slot) => {
-              setReplacementSlot(slot);
-              setReplacementPrompt(false);
-              if (slot !== null) focusCatalogue();
-            }}
-            onBrowseCatalogue={() => {
-              setReplacementSlot(null);
-              focusCatalogue();
-            }}
-            onRemove={removeDecision}
-          />
-        </div>
-
-        <Catalogue
-          decisions={controller.decisions}
-          constraints={controller.constraints}
-          onConstraintsChange={controller.setConstraints}
-          replacementSlot={replacementSlot}
-          attemptIssues={controller.attemptIssues}
-          formatIssue={issueText}
-          onChoose={addOrReplace}
-          onNeedReplacement={() => setReplacementPrompt(true)}
-        />
-        <WorkshopPanel />
-        <StressPanel />
-        <section className="cb-panel mt-6"><h2>{tWorkflow('delivery')}</h2><p>{tWorkflow('briefIntro')}</p><Link className="inline-flex min-h-11 items-center font-semibold text-accent" href={`/city/${initial.scenario.id}/brief`} onClick={event=>navigate(event,`/city/${initial.scenario.id}/brief`)}>{tWorkflow('brief')}</Link></section>
-        {controller.serverView.evaluation.result.complete&&<DeliveryPanel scenarioId={initial.scenario.id} revisionId={controller.serverView.revision.id}/>}
-        </div>
-
-        {assistant ? (
-          <aside id="city-conversation" className={cn("cb-conversation-column", chatOpen && "cb-conversation-open")}>
-            <button
-              ref={chatCloseRef}
-              type="button"
-              className="cb-chat-close"
-              aria-label={tAssistant("closeConversation")}
-              onClick={closeChat}
-            >
-              <X aria-hidden="true" />
-            </button>
-            {assistant}
-          </aside>
-        ) : null}
-        </div>
-
-        {assistant ? (
-          <button
-            ref={chatLaunchRef}
-            type="button"
-            className="cb-chat-launcher"
-            aria-controls="city-conversation"
-            aria-expanded={chatOpen}
-            onClick={() => setChatOpen(true)}
-          >
-            <Bot aria-hidden="true" />
-            {tAssistant("discussPlan")}
-          </button>
-        ) : null}
-      </main>
-    </div>
-    </ScenarioControllerProvider>
-  );
+export function ScenarioShell({initial,assistant,initialWorkspace='plan',initialDeliverySection='files'}:ScenarioShellProps){
+ const t=useTranslations('workspace'),tc=useTranslations('common'),td=useTranslations('domain'),te=useTranslations('errors'),tb=useTranslations('board'),ta=useTranslations('assistant'),tm=useTranslations('measures'),tf=useTranslations('workflow'),districts=useTranslations('districts');
+ const locale=useLocale(),number=new Intl.NumberFormat(locale,{maximumFractionDigits:2}),controller=useScenarioController(initial),router=useRouter();
+ const [activeView,setActiveView]=useState<WorkspaceView>(initialWorkspace),[visited,setVisited]=useState<Set<WorkspaceView>>(()=>new Set([initialWorkspace]));
+ const [deliverySection,setDeliverySection]=useState<DeliverySection>(initialDeliverySection),[catalogueOpen,setCatalogueOpen]=useState(false);
+ const [selectedDistrictId,setSelectedDistrictId]=useState<DistrictId>('nura'),[replacementSlot,setReplacementSlot]=useState<number|null>(null),[replacementPrompt,setReplacementPrompt]=useState(false);
+ const [chatOpen,setChatOpen]=useState(false),[openingDelivery,setOpeningDelivery]=useState(false);
+ const chatCloseRef=useRef<HTMLButtonElement>(null),chatLaunchRef=useRef<HTMLButtonElement>(null),chatRef=useRef<HTMLElement>(null);
+ const tabRefs=useRef<Partial<Record<WorkspaceView,HTMLButtonElement|null>>>({});
+ const showView=useCallback((view:WorkspaceView,section?:DeliverySection)=>{
+  setActiveView(view);setVisited(old=>new Set([...old,view]));if(section)setDeliverySection(section);
+  const url=new URL(window.location.href);url.searchParams.set('view',view);if(view==='deliver')url.searchParams.set('section',section??deliverySection);else url.searchParams.delete('section');window.history.replaceState(window.history.state,'',url);
+ },[deliverySection]);
+ async function openView(view:WorkspaceView,section?:DeliverySection){if(view==='deliver'){setOpeningDelivery(true);try{if(!await controller.flush())return;}finally{setOpeningDelivery(false);}}showView(view,section);}
+ const closeChat=useCallback(()=>{setChatOpen(false);requestAnimationFrame(()=>chatLaunchRef.current?.focus());},[setChatOpen]);
+ useEffect(()=>{if(!chatOpen)return;const frame=requestAnimationFrame(()=>chatCloseRef.current?.focus());const key=(event:KeyboardEvent)=>{if(event.key==='Escape'){closeChat();return;}if(event.key!=='Tab'||!chatLaunchRef.current?.getClientRects().length)return;const focusable=Array.from(chatRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex="0"]')??[]).filter(n=>n.getClientRects().length);const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}};window.addEventListener('keydown',key);return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',key);};},[chatOpen,closeChat]);
+ useEffect(()=>{const open=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.revisionId!==controller.serverView.revision.id||!DISTRICT_IDS.includes(detail.districtId)||!INDICATOR_IDS.includes(detail.indicatorId))return;showView('plan');setCatalogueOpen(false);setSelectedDistrictId(detail.districtId);setChatOpen(false);requestAnimationFrame(()=>openIndicatorEvidence(detail.districtId,detail.indicatorId));};window.addEventListener('city-evidence',open);return()=>window.removeEventListener('city-evidence',open);},[controller.serverView.revision.id,showView]);
+ async function navigate(event:MouseEvent<HTMLAnchorElement>,href:string){if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;event.preventDefault();if(await controller.flush())router.push(href);}
+ function issueText(issue:DomainIssue){const values=Object.fromEntries(Object.entries(issue.params).filter((e):e is [string,string|number]=>typeof e[1]!=='boolean'));return td(issue.code,values);}
+ function openCatalogue(){showView('plan');setCatalogueOpen(true);requestAnimationFrame(()=>document.getElementById('catalogue-title')?.focus());}
+ function returnToPlan(){setCatalogueOpen(false);setReplacementSlot(null);setReplacementPrompt(false);requestAnimationFrame(()=>document.getElementById('decision-tray-title')?.focus());}
+ function addOrReplace(decision:Decision):ChooseResult{let next:Decision[];if(replacementSlot!==null)next=controller.decisions.map((d,i)=>i===replacementSlot?decision:d);else if(controller.decisions.length===5){setReplacementPrompt(true);return 'need-replacement';}else next=[...controller.decisions,decision];if(controller.trySetDecisions(next)){returnToPlan();return 'accepted';}return 'invalid';}
+ function removeDecision(slot:number){if(controller.trySetDecisions(controller.decisions.filter((_,i)=>i!==slot))){setReplacementSlot(null);setReplacementPrompt(false);}}
+ const preview=controller.preview,complete=preview.complete&&preview.score!==null;
+ const returnTo=`/city/${initial.scenario.id}?view=${activeView}${activeView==='deliver'?`&section=${deliverySection}`:''}`;
+ if(controller.sessionChanging)return <div className="cb-session-changing" aria-busy="true">{tc('loading')}</div>;
+ return <ScenarioControllerProvider value={controller}><div className="cb-shell cb-task-workspace">
+  <header className="cb-shell-header"><Link href="/" className="cb-brand-link" aria-label="CityBalance" onClick={e=>navigate(e,'/')}><Logo/></Link><nav className="cb-main-nav" aria-label={tb('home')}><Link href="/scenarios" onClick={e=>navigate(e,'/scenarios')}>{tb('library')}</Link></nav><div className="cb-header-actions"><AccountControl returnTo={returnTo} beforeNavigate={controller.flush}/><LanguageSelector label={tc('language')} beforeChange={controller.flush}/></div></header>
+  <main className="cb-workspace">
+   <div className="cb-workspace-titlebar"><div className="cb-title-and-save"><label className="cb-title-field"><span className="sr-only">{tb('titleLabel')}</span><Pencil className="size-4" aria-hidden="true"/><input value={controller.title} maxLength={120} onChange={e=>controller.setTitle(e.target.value)} aria-label={tb('titleLabel')}/></label><SaveState status={controller.saveStatus} labels={{idle:tc('unsaved'),saving:tc('saving'),saved:tc('saved'),error:tb('saveFailed')}}/></div><div className="cb-delivery-shortcuts"><Button variant="secondary" size="compact" loading={openingDelivery&&deliverySection==='files'} onClick={()=>void openView('deliver','files')}><Download size={17}/>{t('download')}</Button><Button variant="secondary" size="compact" onClick={()=>void openView('deliver','share')}><Share2 size={17}/>{t('share')}</Button></div></div>
+   <div className="cb-workspace-navigation" role="tablist" aria-label={t('navigation')}>{viewIds.map((view,index)=>{const Icon=icons[view];return <button type="button" key={view} ref={node=>{tabRefs.current[view]=node;}} id={`workspace-tab-${view}`} role="tab" aria-selected={activeView===view} aria-controls={`workspace-pane-${view}`} tabIndex={activeView===view?0:-1} onClick={()=>void openView(view)} onKeyDown={e=>{let next:number|undefined;if(e.key==='ArrowRight')next=(index+1)%viewIds.length;if(e.key==='ArrowLeft')next=(index+viewIds.length-1)%viewIds.length;if(e.key==='Home')next=0;if(e.key==='End')next=viewIds.length-1;if(next!==undefined){e.preventDefault();void openView(viewIds[next]);tabRefs.current[viewIds[next]]?.focus();}}}><Icon aria-hidden="true"/><span>{t(`view_${view}`)}</span></button>;})}</div>
+   <div className="cb-budget-strip" aria-live="polite"><div><Coins aria-hidden="true"/><span>{tc('budget')}</span><strong>{number.format(preview.cost)} / 100</strong></div><div><LayoutGrid aria-hidden="true"/><span>{t('selected')}</span><strong>{controller.decisions.length} / 5</strong></div><div><Scale aria-hidden="true"/><span>{t('modelScore')}</span><strong>{complete?number.format(preview.score!):t('notCalculated')}</strong></div>{preview.criticalPairs.length>0&&<div className="cb-budget-risk"><AlertTriangle aria-hidden="true"/><span>{t('weakIndicators',{count:preview.criticalPairs.length})}</span></div>}{controller.isDirty&&<span className="cb-budget-preview">{tb('preview')}</span>}</div>
+   {controller.problem&&<Alert tone="danger" title={tb('saveFailed')}><p>{te(controller.problem.code,controller.problem.params)}</p><Button variant="secondary" size="compact" onClick={()=>void controller.retrySave()}>{tb('retrySave')}</Button></Alert>}
+   {controller.conflict&&<section className="cb-conflict"><div className="cb-conflict-heading"><AlertTriangle/><div><h2>{tb('conflictTitle')}</h2><p>{controller.conflict.external?tb('externalChange'):tb('conflictBody')}</p></div></div><div className="cb-conflict-compare"><div><h3>{tb('localVersion')}</h3><ul>{controller.conflict.localDecisions.map(d=><li key={d.measureId}>{tm(d.measureId)}{d.districtId?`, ${districts(d.districtId)}`:''}</li>)}</ul></div><div><h3>{tb('serverVersion')}</h3><ul>{controller.conflict.server.revision.decisions.map(d=><li key={d.measureId}>{tm(d.measureId)}{d.districtId?`, ${districts(d.districtId)}`:''}</li>)}</ul></div></div><div className="cb-conflict-actions"><Button variant="secondary" onClick={controller.useServerVersion}><Server size={16}/>{tb('useServer')}</Button><Button onClick={()=>void controller.retryLocalVersion()}>{tb('retryLocal')}</Button></div></section>}
+   <div className="cb-workspace-columns"><div className="cb-manual-workspace">
+    <div className="cb-workspace-view-heading"><div><h1>{t(`heading_${activeView}`)}</h1><p>{t(`description_${activeView}`)}</p></div>{activeView==='plan'&&!catalogueOpen&&<Button onClick={()=>complete?void openView('compare'):openCatalogue()}>{complete?t('findAlternative'):t('chooseMeasures')}<ArrowRight size={17}/></Button>}</div>
+    <section id="workspace-pane-plan" role="tabpanel" aria-labelledby="workspace-tab-plan" hidden={activeView!=='plan'} className="cb-workspace-pane">
+     {catalogueOpen?<><div className="cb-catalogue-toolbar"><Button variant="quiet" onClick={returnToPlan}><ArrowLeft size={17}/>{t('backToChoices')}</Button><p>{replacementSlot===null?t('chooseOne'):t('replaceOne',{measure:tm(controller.decisions[replacementSlot].measureId)})}</p></div>{replacementPrompt&&<Alert tone="warning">{tb('selectReplacementFirst')}</Alert>}<Catalogue decisions={controller.decisions} constraints={controller.constraints} onConstraintsChange={controller.setConstraints} replacementSlot={replacementSlot} attemptIssues={controller.attemptIssues} formatIssue={issueText} onChoose={addOrReplace} onNeedReplacement={()=>setReplacementPrompt(true)}/></>:<><div className="cb-plan-layout"><DecisionTray decisions={controller.decisions} constraints={controller.constraints} replacementSlot={replacementSlot} onReplacementSlotChange={slot=>{setReplacementSlot(slot);setReplacementPrompt(false);if(slot!==null)openCatalogue();}} onBrowseCatalogue={()=>{setReplacementSlot(null);openCatalogue();}} onRemove={removeDecision} onToggleLock={decision=>controller.setConstraints({...controller.constraints,locked:controller.constraints.locked.some(d=>d.measureId===decision.measureId)?controller.constraints.locked.filter(d=>d.measureId!==decision.measureId):[...controller.constraints.locked,decision],excludedMeasureIds:controller.constraints.excludedMeasureIds.filter(id=>id!==decision.measureId)})}/><CityBoard evaluation={preview} decisions={controller.decisions} selectedDistrictId={selectedDistrictId} onSelectedDistrictChange={setSelectedDistrictId}/></div>{controller.attemptIssues.map((issue,i)=><Alert key={i} tone="warning">{issueText(issue)}</Alert>)}<div className="cb-plan-next"><FileText aria-hidden="true"/><div><strong>{t('prepareTitle')}</strong><p>{complete?t('prepareReady'):tf('completeFirst')}</p></div><Button variant="secondary" onClick={()=>void openView('deliver')}>{t('prepareAction')}<ArrowRight size={16}/></Button></div></>}
+    </section>
+    <section id="workspace-pane-compare" role="tabpanel" aria-labelledby="workspace-tab-compare" hidden={activeView!=='compare'} className="cb-workspace-pane">{visited.has('compare')&&<WorkshopPanel/>}</section>
+    <section id="workspace-pane-stress" role="tabpanel" aria-labelledby="workspace-tab-stress" hidden={activeView!=='stress'} className="cb-workspace-pane">{visited.has('stress')&&<StressPanel/>}</section>
+    <section id="workspace-pane-deliver" role="tabpanel" aria-labelledby="workspace-tab-deliver" hidden={activeView!=='deliver'} className="cb-workspace-pane">{visited.has('deliver')&&<><div className="cb-document-entry"><FileText aria-hidden="true"/><div><h2>{t('briefTitle')}</h2><p>{t('briefDescription')}</p></div><Link href={`/city/${initial.scenario.id}/brief`} onClick={e=>navigate(e,`/city/${initial.scenario.id}/brief`)}>{t('openBrief')}<ArrowRight size={17}/></Link></div>{controller.serverView.evaluation.result.complete?<DeliveryPanel scenarioId={initial.scenario.id} revisionId={controller.serverView.revision.id} activeSection={deliverySection} onSectionChange={section=>showView('deliver',section)}/>:<Alert tone="info">{tf('completeFirst')} <button className="font-semibold underline" onClick={openCatalogue}>{t('chooseMeasures')}</button></Alert>}</>}</section>
+   </div>{assistant&&<aside ref={chatRef} id="city-conversation" role={chatOpen?'dialog':undefined} aria-modal={chatOpen||undefined} aria-label={ta('discussPlan')} className={cn('cb-conversation-column',chatOpen&&'cb-conversation-open')}><button ref={chatCloseRef} type="button" className="cb-chat-close" aria-label={ta('closeConversation')} onClick={closeChat}><X aria-hidden="true"/></button>{assistant}</aside>}</div>
+   {assistant&&<button ref={chatLaunchRef} type="button" className="cb-chat-launcher" aria-controls="city-conversation" aria-expanded={chatOpen} onClick={()=>setChatOpen(true)}><Bot aria-hidden="true"/>{ta('discussPlan')}</button>}
+  </main>
+ </div></ScenarioControllerProvider>;
 }

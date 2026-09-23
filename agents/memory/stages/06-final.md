@@ -1,5 +1,5 @@
 # 06 Russian README, authored video and final landing integration
-Status: not started. Requires05 passing full-suite review/stability gate. Execute06.1 COMPLETELY before06.2;06.3 integrates the finished video. This is one final MAIN chat with three commit blocks, not a license to document unimplemented promises.
+Status: technical facts and runtime preflight prepared under explicit user request to finish all six stages in this chat. README writing waits for current05 release gate; video composition waits for completed README. Deadline12:58UTC. Requires05 passing full-suite review/stability gate. Execute06.1 COMPLETELY before06.2;06.3 integrates the finished video. This is one final MAIN chat with three commit blocks, not a license to document unimplemented promises.
 Read PROJECT verified status/evidence, PLAN and this stage; knowledge/README.md first. Read MEDIA.md and relevant design/video/ANALYSIS.md/RECIPES.md only when beginning video. No skill/catalog loading. MAIN owns README, dependencies, app/media integration and Git. A video worker may own video/ only after06.1 and a precise verified shot contract; worker cannot delegate or write memory. MAIN alone updates this stage's shot table and attribution facts.
 
 ## 06.1 README that lets the jury independently run the product

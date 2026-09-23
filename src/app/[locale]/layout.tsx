@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { SessionBoundary } from "@/components/app/SessionBoundary";
+import {AppFooter} from '@/components/app/AppFooter';
 import "../globals.css";
 
 export async function generateMetadata({params}:{params:Promise<{locale:string}>}) {
@@ -19,5 +20,5 @@ export default async function LocaleLayout({ children, params }: {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  return <html lang={locale}><body><NextIntlClientProvider><SessionBoundary />{children}</NextIntlClientProvider></body></html>;
+  return <html lang={locale}><body><NextIntlClientProvider><SessionBoundary />{children}<AppFooter/></NextIntlClientProvider></body></html>;
 }

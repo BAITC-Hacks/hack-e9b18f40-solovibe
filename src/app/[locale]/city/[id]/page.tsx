@@ -9,13 +9,16 @@ import { ScenarioShell } from "@/features/city/components/ScenarioShell";
 import { AssistantPanel } from "@/features/city/components/AssistantPanel";
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
-export default async function Page({params}:{params:Promise<{id:string}>}) {
+export default async function Page({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<{view?:string;section?:string}>}) {
   const {id}=await params;
+  const query=await searchParams;
+  const workspace=query.view==='compare'||query.view==='stress'||query.view==='deliver'?query.view:'plan';
+  const section=query.section==='share'||query.section==='teams'?query.section:'files';
   const t=await getTranslations();
   let view;
   try {view=await getScenario(await resolvePrincipal(),id);}
   catch(error) { const code=error instanceof CityError?error.code:"STORAGE_UNAVAILABLE";
     return <main className="page-shell"><AppHeader/><section className="surface mx-auto max-w-xl p-8"><h1 className="text-3xl">{t("app.notFoundTitle")}</h1><Alert tone="danger">{t(`errors.${code}`)}</Alert><Link href="/scenarios" className="mt-6 inline-block font-semibold text-accent">{t("app.goLibrary")}</Link></section></main>;
   }
-  return <ScenarioShell key={`${view.principalKind}:${id}`} initial={view} assistant={<AssistantPanel/>}/>;
+  return <ScenarioShell key={`${view.principalKind}:${id}`} initial={view} initialWorkspace={workspace} initialDeliverySection={section} assistant={<AssistantPanel/>}/>;
 }

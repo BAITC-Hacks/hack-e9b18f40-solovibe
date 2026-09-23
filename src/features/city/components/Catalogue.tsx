@@ -117,7 +117,7 @@ export function Catalogue({ decisions, replacementSlot, attemptIssues, formatIss
                 <span>{measure.cost} {tCommon("units")}</span>
               </div>
               <h3>{tMeasures(measure.id)}</h3>
-              <p className="cb-lag">{tCommon("lag")}: {measure.lag} {tCommon("quarters")}</p>
+
 
               {measure.scope === "district" ? (
                 <label className="cb-target-select">
@@ -137,23 +137,26 @@ export function Catalogue({ decisions, replacementSlot, attemptIssues, formatIss
               )}
 
               <div className="cb-effects" aria-label={tBoard("effects")}>
-                <span className="cb-realized-effect">{t("fullEffect")}</span>
+                <span className="cb-realized-effect">{t("horizonEffects")}</span>
                 {Object.entries(measure.effects).map(([indicatorId, amount]) => (
                   <span key={indicatorId} className={cn("cb-effect", Number(amount) < 0 && "cb-effect-negative")}>
                     {Number(amount) < 0 ? <ArrowDownRight aria-hidden="true" /> : <ArrowUpRight aria-hidden="true" />}
-                    {tIndicators(indicatorId)} {Number(amount) > 0 ? "+" : ""}{amount}
+                    {tIndicators(indicatorId)} {Number(amount) > 0 ? "+" : ""}{Number(amount) * (8 - measure.lag) / 8}
                   </span>
                 ))}
               </div>
 
-              <p className="cb-realized-effect">{t("realized", { share: (8 - measure.lag) / 8 * 100 })}: {Object.entries(measure.effects).map(([id, amount]) => `${tIndicators(id)} ${Number(amount) > 0 ? '+' : ''}${Number(amount) * (8 - measure.lag) / 8}`).join(' · ')}</p>
+
               {measure.id === 'M11' ? <p className="cb-selection-warning">{t("m11Warning")}</p> : null}
               {near.length ? <p className="cb-selection-warning">{t("thresholdWatch")}: {near.join(' · ')}</p> : null}
               {!alreadySelected && conflicts.length ? <p className="cb-selection-warning">{conflicts.map(formatIssue).join(' · ')}</p> : null}
+              <details className="cb-measure-calculation"><summary>{t("calculationDetails")}</summary><p>{tCommon("lag")}: {measure.lag} {tCommon("quarters")}</p><p>{t("fullEffect")}: {Object.entries(measure.effects).map(([id,value])=>`${tIndicators(id)} ${value}`).join(", ")}</p>
+              <p className="cb-realized-effect">{t("realized", { share: (8 - measure.lag) / 8 * 100 })}: {Object.entries(measure.effects).map(([id, amount]) => `${tIndicators(id)} ${Number(amount) > 0 ? '+' : ''}${Number(amount) * (8 - measure.lag) / 8}`).join(' · ')}</p>
               {constraints ? <div className="cb-catalogue-constraints">
                 {selectedDecision ? <label><input type="checkbox" checked={locked} disabled={!onConstraintsChange} onChange={e => onConstraintsChange?.({ ...constraints, locked: e.target.checked ? [...constraints.locked.filter(d => d.measureId !== measure.id), selectedDecision] : constraints.locked.filter(d => d.measureId !== measure.id), excludedMeasureIds: constraints.excludedMeasureIds.filter(id => id !== measure.id) })} />{t('locked')}</label> : null}
                 <label><input type="checkbox" checked={excluded} disabled={!onConstraintsChange || locked} onChange={e => onConstraintsChange?.({ ...constraints, excludedMeasureIds: e.target.checked ? [...constraints.excludedMeasureIds.filter(id => id !== measure.id), measure.id] : constraints.excludedMeasureIds.filter(id => id !== measure.id) })} />{t('excluded')}</label>
               </div> : null}
+              </details>
               {replacementLocked ? <p className="cb-selection-warning">{t('unlockFirst')}</p> : null}
               <button type="button" className="cb-add-button" disabled={alreadySelected || excluded || replacementLocked} onClick={() => choose(measure)}>
                 {replacing ? <Replace className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}

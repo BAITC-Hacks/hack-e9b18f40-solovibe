@@ -10,6 +10,20 @@ import '../../evidence.css';
 const number = (v: number) => Number(v.toFixed(4)).toString();
 const signed = (v: number) => `${v > 0 ? '+' : ''}${number(v)}`;
 
+/** Open the full disclosure chain before scrolling, including calls from the assistant. */
+export function openIndicatorEvidence(districtId: string, indicatorId: string) {
+  const node = document.getElementById(`evidence-${districtId}-${indicatorId}`);
+  if (!(node instanceof HTMLDetailsElement)) return;
+  node.open = true;
+  let parent = node.parentElement;
+  while (parent) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true;
+    parent = parent.parentElement;
+  }
+  node.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  node.querySelector('summary')?.focus({ preventScroll: true });
+}
+
 export function EvidencePanel({ evaluation, decisions, districtId }: { evaluation: Evaluation; decisions: readonly Decision[]; districtId: DistrictId }) {
   const t = useTranslations('evidence');
   const ti = useTranslations('indicators');
@@ -28,15 +42,15 @@ export function EvidencePanel({ evaluation, decisions, districtId }: { evaluatio
       <p>{t('districtFormula')}</p>
       <p>{t('populationWeights')}: {evaluation.districts.map(d => `${td(d.districtId)} ${number(d.populationShare * 100)}%`).join(' · ')}</p>
     </details>
-    <section aria-labelledby="indicator-evidence-title">
-      <h3 id="indicator-evidence-title">{td(districtId)} · {t('indicators')}</h3>
+    <details className="cb-evidence-all" key={districtId}>
+      <summary>{td(districtId)} · {t('indicators')}</summary>
       <p>{t('horizon')} {t('thresholdRule')}</p>
       <div className="cb-evidence-indicators">
         {district.indicators.map(indicator => {
           const source = evaluation.evidence.find(e => e.id === indicator.evidenceId);
           const inputs = source?.inputs.map(id => evaluation.evidence.find(e => e.id === id)).filter(e => !!e) ?? [];
           const status = indicator.after < 40 ? 'critical' : indicator.before < 40 ? 'crossed' : indicator.after < 42 ? 'nearThreshold' : indicator.delta === 0 ? 'unchanged' : 'changed';
-          return <details key={indicator.indicatorId} id={`evidence-${districtId}-${indicator.indicatorId}`} className="cb-indicator-evidence">
+          return <details key={indicator.indicatorId} id={`evidence-${districtId}-${indicator.indicatorId}`} className="cb-indicator-evidence" onToggle={event => { if (event.currentTarget.open) { const parent = event.currentTarget.closest('.cb-evidence-all'); if (parent instanceof HTMLDetailsElement) parent.open = true; } }}>
             <summary><span>{ti(indicator.indicatorId)} <small>{indicator.indicatorId}</small></span><strong>{number(indicator.before)} → {number(indicator.after)}</strong><span className={`cb-evidence-status cb-evidence-${status}`}>{t(status)}</span></summary>
             <div className="cb-evidence-detail">
               <p>{t('weight')}: {number(AKIM_DATASET.weights[indicator.indicatorId] * 100)}% · {t('delta')}: {signed(indicator.delta)} {t('points')}</p>
@@ -51,7 +65,7 @@ export function EvidencePanel({ evaluation, decisions, districtId }: { evaluatio
           </details>;
         })}
       </div>
-    </section>
+    </details>
     <details className="cb-evidence-attribution">
       <summary>{t('attribution')}</summary>
       <p>{t('attributionExplanation')}</p>

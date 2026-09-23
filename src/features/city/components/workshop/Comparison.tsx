@@ -19,7 +19,7 @@ export function EvaluationSummary({ result }: {
 }) {
     const t = useTranslations("workshop"), td = useTranslations("districts"), locale = useLocale();
     const n = (v: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(v);
-    return <><dl className="cbw-metrics"><div><dt>Score</dt><dd>{result.score === null ? "вЂ”" : n(result.score)}</dd></div><div><dt>{t("cost")}</dt><dd>{n(result.cost)}</dd></div><div><dt>{t("weakest")}</dt><dd>{n(result.minimumDistrictScore)}</dd></div><div><dt>{t("critical")}</dt><dd>{result.criticalPairs.length}</dd></div></dl><p className="cbw-hint">{t("weakest")}: {result.weakestDistrictIds.map(d => td(d)).join(", ")}. {t("directDistricts")}: {result.directDistrictIds.map(d => td(d)).join(", ") || "вЂ”"}</p></>;
+    return <><dl className="cbw-metrics"><div><dt>{t("modelScore")}</dt><dd>{result.score === null ? "вЂ”" : n(result.score)}</dd></div><div><dt>{t("cost")}</dt><dd>{n(result.cost)}</dd></div><div><dt>{t("weakest")}</dt><dd>{n(result.minimumDistrictScore)}</dd></div><div><dt>{t("critical")}</dt><dd>{result.criticalPairs.length}</dd></div></dl><p className="cbw-hint">{t("weakest")}: {result.weakestDistrictIds.map(d => td(d)).join(", ")}. {t("directDistricts")}: {result.directDistrictIds.map(d => td(d)).join(", ") || "вЂ”"}</p></>;
 }
 export function ConditionChecks({ constraints: q, result: r }: {
     constraints: Constraints;
@@ -78,7 +78,7 @@ export function AlignedComparison({ columns }: {
         group?: string;
         cells: ReactNode[];
     }[] = [
-        { id: "score", label: "Score", cells: columns.map((c, i) => metric(c.evaluation.score, baseline.evaluation.score, i)) },
+        { id: "score", label: t("modelScore"), cells: columns.map((c, i) => metric(c.evaluation.score, baseline.evaluation.score, i)) },
         { id: "cost", label: t("cost"), cells: columns.map((c, i) => metric(c.evaluation.cost, baseline.evaluation.cost, i)) },
         { id: "critical", label: t("critical"), cells: columns.map((c, i) => metric(c.evaluation.criticalPairs.length, baseline.evaluation.criticalPairs.length, i)) },
         { id: "weakest", label: t("weakest"), cells: columns.map((c, i) => <>{metric(c.evaluation.minimumDistrictScore, baseline.evaluation.minimumDistrictScore, i)}<span className="cbw-aligned-note">{c.evaluation.weakestDistrictIds.map(d => td(d)).join(", ")}</span></>) },

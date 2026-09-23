@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -12,6 +12,10 @@ import { AKIM_DATASET } from '../src/features/city/data/akim-v1';
 import { evaluate } from '../src/features/city/engine';
 import { createScenario, deleteScenario } from '../src/server/city/scenarios';
 import { createArtifact } from '../src/server/city/exports';
+import { createStress, getStress } from '../src/server/city/stress';
+import { createBrief, editBrief } from '../src/server/city/briefs';
+import { createSearch, processSearchJob } from '../src/server/city/searches';
+import { claimJob } from '../src/server/city/jobs';
 import { getArtifact, readArtifact, readArtifactForSnapshot, artifactChecksum, artifactDownloadResponse } from '../src/server/city/artifact-access';
 import { cleanupArtifacts, deleteArtifact } from '../src/server/city/cleanup';
 import { renderBriefHtml, csvCell } from '../src/features/city/brief/render';
@@ -96,6 +100,60 @@ try {
     }
     assert.equal(csvCell(' =WEBSERVICE("x")'), '"\' =WEBSERVICE(""x"")"');
     assert.equal(csvCell(-2), '"-2"');
+    // A later repair is not a new source or brief version and must not poison a pending export.
+    const savedStress = await createStress(p, { sourceRevisionId: s.revision.id, ...assumption, clientMutationId: randomUUID() });
+    const pendingBrief = await createBrief(p, { sourceRevisionId: s.revision.id, stressId: savedStress.id, comparisonRevisionIds: [], locale: 'ru', clientMutationId: randomUUID() });
+    const boundBrief = await editBrief(p, pendingBrief.brief.id, { expectedVersion: pendingBrief.brief.version, sectionEdits: pendingBrief.brief.sections.map(section => ({ id: section.id, text: 'Author rationale for the selected sensitivity experiment' })) });
+    const stressInputs = (['json', 'csv'] as const).map(kind => ({ ...input, kind, briefId: boundBrief.brief.id, briefVersion: boundBrief.brief.version, clientMutationId: randomUUID() }));
+    const stressBlocked = join(local, 'stress-blocked');
+    await writeFile(stressBlocked, 'fixture');
+    process.env.STORAGE_LOCAL_DIR = stressBlocked;
+    for (const request of stressInputs)
+        await assert.rejects(createArtifact(p, request), { code: 'STORAGE_UNAVAILABLE' });
+    process.env.STORAGE_LOCAL_DIR = local;
+    const pendingStressFiles = await getDb().select().from(cityArtifacts).where(eq(cityArtifacts.briefId, boundBrief.brief.id));
+    assert.equal(pendingStressFiles.length, 2);
+    assert.ok(pendingStressFiles.every(row => row.state === 'failed'));
+    const repairSearch = await createSearch(p, { scenarioId: s.scenario.id, inputRevisionId: s.revision.id, constraints: s.revision.constraints, assumptions: assumption, stressId: savedStress.id, limit: 1, clientRequestId: randomUUID() });
+    const repairJob = await claimJob('exports-regression');
+    assert.equal(repairJob?.id, repairSearch.id);
+    await processSearchJob(repairJob!, new AbortController().signal);
+    assert.ok((await getStress(p, savedStress.id)).experiment.repairRevisionIds.length > 0);
+    for (const row of pendingStressFiles)
+        await getDb().update(cityArtifacts).set({ retryAt: null }).where(eq(cityArtifacts.id, row.id));
+    for (const request of stressInputs) {
+        const retried = await createArtifact(p, request), before = pendingStressFiles.find(row => row.kind === request.kind)!;
+        assert.equal(retried.id, before.id);
+        assert.equal(retried.state, 'ready');
+        assert.equal(retried.sha256, before.sha256);
+        const content = Buffer.from((await readArtifact(p, retried.id)).bytes).toString();
+        assert.ok(!content.includes('repairRevisionIds'));
+        assert.ok(content.includes('selectedRevisionId'));
+        if (request.kind === 'json') {
+            const exported = JSON.parse(content);
+            assert.equal(exported.stress.selectedRevisionId, s.revision.id);
+            assert.deepEqual(exported.stress.selectedEvaluation, boundBrief.stress!.selectedEvaluation);
+        }
+    }
+    assert.equal((await getDb().select().from(cityArtifacts).where(eq(cityArtifacts.briefId, boundBrief.brief.id))).length, 2);
+    // Old-format failures keep their exact tombstone; the new format receives a fresh identity.
+    const legacyRequest = { ...stressInputs[0], locale: 'en' as const };
+    process.env.STORAGE_LOCAL_DIR = stressBlocked;
+    await assert.rejects(createArtifact(p, legacyRequest), { code: 'STORAGE_UNAVAILABLE' });
+    process.env.STORAGE_LOCAL_DIR = local;
+    const legacyRows = await getDb().select().from(cityArtifacts).where(eq(cityArtifacts.briefId, boundBrief.brief.id));
+    const legacy = legacyRows.find(row => row.locale === 'en')!;
+    const legacyCache = createHash('sha256').update(JSON.stringify(['public-safe-v1', s.revision.id, boundBrief.brief.id, boundBrief.brief.version, 'en', 'json'])).digest('hex');
+    await getDb().update(cityArtifacts).set({ cacheKey: legacyCache, updatedAt: new Date(Date.now() - 25 * 3600000) }).where(eq(cityArtifacts.id, legacy.id));
+    const newFormat = await createArtifact(p, legacyRequest);
+    assert.notEqual(newFormat.id, legacy.id);
+    assert.equal(newFormat.state, 'ready');
+    await cleanupArtifacts();
+    assert.equal((await getArtifact(p, legacy.id)).state, 'deleting');
+    await cleanupArtifacts();
+    assert.equal((await getArtifact(p, legacy.id)).state, 'deleted');
+    assert.equal(await readStoredObject(legacy.key), null);
+    assert.equal((await getArtifact(p, newFormat.id)).state, 'ready');
     const failureSource = await createScenario(p, { source: 'proof', clientMutationId: randomUUID() });
     const failureInput = { ...input, revisionId: failureSource.revision.id };
     const blocked = join(local, 'blocked');

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Bot, Check, ChevronDown, History, RefreshCw, Save, Square } from "lucide-react";
+import { Bot, Check, ChevronDown, FileText, History, Pencil, RefreshCw, Save, Square, X,Download,Share2,ArrowLeft } from "lucide-react";
 import { Alert, Button } from "@/components/ui";
 import { cityApi, errorCode } from "@/lib/city-api";
 import type { RunView } from "../../ai-contracts";
 import type { ScenarioView } from "../../records";
 import type { BriefSection, BriefView } from "../contracts";
-import { BriefStatus, DecisionTable, EvidenceRefs, ResultSummary, SourceStamp, sectionOrder } from "./BriefDocument";
+import { BriefStatus, DecisionTable, EvidenceRefs, ResultSummary, sectionOrder } from "./BriefDocument";
 import "../brief.css";
 import {DeliveryPanel} from '../../components/sharing/DeliveryPanel';
 
@@ -51,12 +51,18 @@ function cloneTexts(texts: Partial<Record<SectionId, string>>) {
 
 export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
   const t = useTranslations("brief");
+  const tw=useTranslations('workspace');
+  const [deliveryMode,setDeliveryMode]=useState<'files'|'share'|'teams'|null>(null),[deliveryVisited,setDeliveryVisited]=useState(false);
   const tErrors = useTranslations("errors");
+  const tCommon = useTranslations("common");
   const locale = useLocale() as "ru" | "kk" | "en";
   const [view, setView] = useState(initial);
   const [title, setTitle] = useState(initial.brief.title);
   const [texts, setTexts] = useState<Partial<Record<SectionId, string>>>(() => sectionMap(initial));
   const [selectedSection, setSelectedSection] = useState<SectionId | "all">("all");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingSection, setEditingSection] = useState<SectionId | null>(null);
+  const [refiningSection, setRefiningSection] = useState<SectionId | null>(null);
   const [instruction, setInstruction] = useState("");
   const [work, setWork] = useState<Work>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -375,13 +381,13 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
     return current;
   }
 
-  async function refine() {
-    const objective = instruction.trim();
+  async function refine(target: SectionId | "all" = selectedSection, useDefault = false) {
+    const objective = latestInstruction.current.trim() || (useDefault ? t("defaultBriefObjective") : "");
     if (objective.length < 3 || work || historical) return;
     setWork("run");
     setProblem(null);
     setNotice(null);
-    const signature = JSON.stringify([view.brief.id, view.brief.version, selectedSection, objective]);
+    const signature = JSON.stringify([view.brief.id, view.brief.version, target, objective]);
     const clientRequestId = requestIds.current.get(signature) ?? crypto.randomUUID();
     requestIds.current.set(signature, clientRequestId);
     const controller = new AbortController();
@@ -403,7 +409,7 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
           context: {
             briefId: view.brief.id,
             briefVersion: view.brief.version,
-            ...(selectedSection === "all" ? {} : { sectionIds: [selectedSection] }),
+            ...(target === "all" ? {} : { sectionIds: [target] }),
           },
           clientRequestId,
         },
@@ -417,6 +423,7 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
         if (latestInstruction.current === sentInstruction) {
           latestInstruction.current = "";
           setInstruction("");
+          setRefiningSection(null);
         }
         setNotice(t("generationComplete"));
       } else {
@@ -446,21 +453,60 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
     }
   }
 
+  function changeTitle(value: string) {
+    latestTitle.current = value;
+    setTitle(value);
+    setNotice(null);
+  }
+
+  function changeSection(id: SectionId, value: string) {
+    const next = { ...latestTexts.current, [id]: value };
+    latestTexts.current = next;
+    setTexts(next);
+    setNotice(null);
+  }
+
+  function discardSectionEdit(section: BriefSection) {
+    changeSection(section.id, section.text);
+    setEditingSection(null);
+  }
+
+  function openRefine(id: SectionId) {
+    latestSelectedSection.current = id;
+    setSelectedSection(id);
+    setRefiningSection(id);
+    setEditingSection(null);
+    setRun(null);
+    setProblem(null);
+  }
+
+  async function openDelivery(mode:'files'|'share'){
+    if(dirty)await save();
+    const live=latestView.current.brief;
+    if(latestTitle.current!==live.title||live.sections.some(s=>(latestTexts.current[s.id]??s.text)!==s.text))return;
+    setDeliveryVisited(true);setDeliveryMode(mode);
+  }
   return (
-    <main className="cbb-editor">
+    <article className="cbb-editor">
       <header className="cbb-editor__header">
         <div>
-          <div className="cbb-heading-row"><BriefStatus view={view} /><SourceStamp view={view} /></div>
-          <label className="cbb-title-field">
-            <span>{t("titleLabel")}</span>
-            <input value={title} maxLength={160} disabled={historical || work === "history"} onChange={(event) => {
-              latestTitle.current = event.target.value;
-              setTitle(event.target.value);
-              setNotice(null);
-            }} />
-          </label>
+          <div className="cbb-heading-row">
+            <BriefStatus view={view} />
+            <span className="cbb-editor-source">{t("versionOption", { version: view.brief.version })} · {t("sourceRevision", { id: view.brief.sourceRevisionId.slice(0, 8) })}</span>
+          </div>
+          {editingTitle ? (
+            <div className="cbb-title-edit">
+              <label className="cbb-title-field"><span>{t("titleLabel")}</span><input autoFocus value={title} maxLength={160} disabled={historical || work === "history"} onChange={(event) => changeTitle(event.target.value)} /></label>
+              <div className="cbb-inline-actions"><Button variant="secondary" size="compact" onClick={() => setEditingTitle(false)}><Check size={16} aria-hidden="true" />{t("finishEditing")}</Button><Button variant="quiet" size="compact" onClick={() => { changeTitle(view.brief.title); setEditingTitle(false); }}><X size={16} aria-hidden="true" />{t("cancelEdit")}</Button></div>
+            </div>
+          ) : (
+            <div className="cbb-title-display"><h1>{title}</h1>{!historical ? <Button variant="quiet" size="compact" onClick={() => setEditingTitle(true)}><Pencil size={16} aria-hidden="true" />{t("editTitle")}</Button> : null}</div>
+          )}
         </div>
         <div className="cbb-header-actions">
+          <Button variant="secondary" disabled={Boolean(work)} onClick={()=>void openDelivery('files')}><Download size={17}/>{tw('download')}</Button>
+          <Button variant="secondary" disabled={Boolean(work)} onClick={()=>void openDelivery('share')}><Share2 size={17}/>{tw('share')}</Button>
+          <span className={`cbb-save-indicator ${dirty ? "is-dirty" : ""}`} role="status">{tCommon(dirty ? "unsaved" : "saved")}</span>
           <label className="cbb-version-select">
             <span><History aria-hidden="true" />{t("versionLabel")}</span>
             <div>
@@ -490,8 +536,9 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
       {view.stale ? <Alert tone="warning" title={t("staleTitle")}>{t("staleDescription")}</Alert> : null}
       {problem ? <Alert tone="danger" title={t("actionFailed")}><p>{tErrors(problem)}</p><p>{t("draftRetained")}</p></Alert> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
+      {deliveryVisited&&<section className="cbb-delivery-actions" hidden={!deliveryMode}><Button variant="quiet" onClick={()=>setDeliveryMode(null)}><ArrowLeft size={16}/>{t('backToDocument')}</Button>{deliveryActions??<DeliveryPanel scenarioId={view.brief.scenarioId} revisionId={view.brief.sourceRevisionId} briefId={view.brief.id} briefVersion={view.brief.version} htmlReady={view.brief.status!=='pending'} activeSection={deliveryMode??'files'} onSectionChange={setDeliveryMode}/>}</section>}
 
-      <div className="cbb-editor__layout">
+      <div className="cbb-editor__layout" hidden={Boolean(deliveryMode)}>
         <section className="cbb-paper" aria-label={t("documentLabel")}>
           <div className="cbb-paper__intro">
             <h2>{t("decisionSet")}</h2>
@@ -500,37 +547,55 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
           <DecisionTable view={view} />
           <ResultSummary view={view} />
 
-          <div className="cbb-section-editors">
+          {view.brief.status === "pending" ? (
+            <section className="cbb-narrative-start">
+              <FileText aria-hidden="true" />
+              <div><h2>{t("pendingNarrativeTitle")}</h2><p>{t("pendingNarrativeHint")}</p></div>
+              <div className="cbb-narrative-start__actions">
+                <Button onClick={() => void refine("all", true)} loading={work === "run"} loadingLabel={t("generating")} disabled={Boolean(work) || historical}>{t("generateNarrative")}</Button>
+                {run && ["queued", "running"].includes(run.run.status) ? <Button variant="secondary" onClick={() => void cancel()} loading={work === "cancel"}><Square size={14} aria-hidden="true" />{t("cancelGeneration")}</Button> : null}
+              </div>
+              <details className="cbb-narrative-request"><summary>{t("customGenerationRequest")}</summary><label><span>{t("instructionLabel")}</span><textarea value={instruction} maxLength={2000} rows={3} disabled={historical} placeholder={t("instructionPlaceholder")} onChange={(event) => { latestInstruction.current = event.target.value; setInstruction(event.target.value); }} /></label></details>
+              <details className="cbb-manual-start"><summary>{t('writeYourself')}</summary><div className="cbb-inline-actions">{sectionOrder.map(id=><Button key={id} variant="quiet" disabled={historical} onClick={()=>{setEditingSection(id);setRefiningSection(null);}}>{t(`section_${id}`)}</Button>)}</div></details>
+              {run ? <p className={`cbb-run-state cbb-run-state--${run.run.status}`}>{t(`run_${run.run.status}`)}</p> : null}
+            </section>
+          ) : null}
+
+          <div className="cbb-section-readers">
             {sectionOrder.map((id) => {
               const section = view.brief.sections.find((item) => item.id === id);
               if (!section) return null;
+              const text = texts[id] ?? section.text;
+              const isEditing = editingSection === id;
+              const isRefining = refiningSection === id;
+              if(!text.trim()&&!isEditing&&!isRefining)return null;
               return (
-                <section key={id} className={`cbb-section-editor ${section.stale ? "is-stale" : ""}`}>
+                <section key={id} className={`cbb-section-reader ${section.stale ? "is-stale" : ""}`}>
                   <header>
                     <div>
                       <h2>{t(`section_${id}`)}</h2>
-                      <span>{t(section.userEdited ? "userEdited" : "generated")}</span>
+                      <span className={section.userEdited ? "is-user" : ""}>{t(section.userEdited ? "userEdited" : "generated")}</span>
                     </div>
                     {section.stale ? <strong>{t("premiseChanged")}</strong> : null}
                   </header>
-                  <label>
-                    <span className="sr-only">{t("sectionText", { section: t(`section_${id}`) })}</span>
-                    <textarea
-                      value={texts[id] ?? ""}
-                      maxLength={2500}
-                      rows={Math.max(5, Math.min(12, Math.ceil((texts[id]?.length ?? 0) / 90)))}
-                      disabled={historical || work === "history"}
-                      onChange={(event) => {
-                        const next = { ...latestTexts.current, [id]: event.target.value };
-                        latestTexts.current = next;
-                        setTexts(next);
-                        setNotice(null);
-                      }}
-                    />
-                  </label>
-                  <div className="cbb-section-editor__meta">
-                    <span>{t("characterCount", { count: texts[id]?.length ?? 0 })}</span>
-                  </div>
+                  {isEditing ? (
+                    <div className="cbb-section-editing">
+                      <label><span className="sr-only">{t("sectionText", { section: t(`section_${id}`) })}</span><textarea autoFocus value={text} maxLength={2500} rows={Math.max(5, Math.min(12, Math.ceil(text.length / 90)))} disabled={historical || work === "history"} onChange={(event) => changeSection(id, event.target.value)} /></label>
+                      <div className="cbb-section-editor__meta"><span>{t("characterCount", { count: text.length })}</span><div className="cbb-inline-actions"><Button variant="secondary" size="compact" onClick={() => setEditingSection(null)}><Check size={16} aria-hidden="true" />{t("finishEditing")}</Button><Button variant="quiet" size="compact" disabled={Boolean(work)} onClick={() => discardSectionEdit(section)}><X size={16} aria-hidden="true" />{t("cancelEdit")}</Button></div></div>
+                    </div>
+                  ) : (
+                    <p className="cbb-section-reader__text">{text || t("sectionEmpty")}</p>
+                  )}
+                  {!historical && !isEditing && !isRefining ? <div className="cbb-section-reader__actions"><Button variant="quiet" size="compact" disabled={Boolean(work)} onClick={() => { setEditingSection(id); setRefiningSection(null); }}><Pencil size={16} aria-hidden="true" />{t("editSection")}</Button><Button variant="quiet" size="compact" disabled={Boolean(work)} onClick={() => openRefine(id)}><Bot size={16} aria-hidden="true" />{t("refineSectionAction")}</Button></div> : null}
+                  {isRefining ? (
+                    <div className="cbb-refine cbb-refine--inline">
+                      <div className="cbb-refine__title"><Bot aria-hidden="true" /><div><h3>{t("refineSectionTitle", { section: t(`section_${id}`) })}</h3><p>{t("refineHint")}</p></div></div>
+                      <label><span>{t("instructionLabel")}</span><textarea value={instruction} maxLength={2000} rows={4} disabled={historical} placeholder={t("instructionPlaceholder")} onChange={(event) => { latestInstruction.current = event.target.value; setInstruction(event.target.value); }} /></label>
+                      <p className="cbb-refine__note">{t("refineLanguageNote")}</p>
+                      <div className="cbb-refine__actions"><Button onClick={() => void refine(id)} loading={work === "run"} loadingLabel={t("generating")} disabled={Boolean(work) || instruction.trim().length < 3}>{t("refineSelected")}</Button>{run && ["queued", "running"].includes(run.run.status) ? <Button variant="secondary" onClick={() => void cancel()} loading={work === "cancel"}><Square size={14} aria-hidden="true" />{t("cancelGeneration")}</Button> : <Button variant="quiet" onClick={() => setRefiningSection(null)}><X size={16} aria-hidden="true" />{t("closeRefine")}</Button>}</div>
+                      {run ? <p className={`cbb-run-state cbb-run-state--${run.run.status}`}>{t(`run_${run.run.status}`)}</p> : null}
+                    </div>
+                  ) : null}
                   {section.generatedText && section.userEdited && section.generatedText !== section.text ? (
                     <details className="cbb-generated-compare">
                       <summary>{t("compareGenerated")}</summary>
@@ -549,51 +614,7 @@ export function BriefEditor({ initial, deliveryActions }: BriefEditorProps) {
             })}
           </div>
         </section>
-
-        <aside className="cbb-editor__aside">
-          <section className="cbb-refine">
-            <div className="cbb-refine__title"><Bot aria-hidden="true" /><div><h2>{t("refineTitle")}</h2><p>{t("refineHint")}</p></div></div>
-            <label>
-              <span>{t("refineSection")}</span>
-              <select value={selectedSection} disabled={Boolean(work) || historical} onChange={(event) => {
-                const next = event.target.value as SectionId | "all";
-                latestSelectedSection.current = next;
-                setSelectedSection(next);
-              }}>
-                <option value="all">{t("allSections")}</option>
-                {sectionOrder.map((id) => <option key={id} value={id}>{t(`section_${id}`)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("instructionLabel")}</span>
-              <textarea
-                value={instruction}
-                maxLength={2000}
-                rows={5}
-                disabled={historical}
-                placeholder={t("instructionPlaceholder")}
-                onChange={(event) => {
-                  latestInstruction.current = event.target.value;
-                  setInstruction(event.target.value);
-                }}
-              />
-            </label>
-            <p className="cbb-refine__note">{t("refineLanguageNote")}</p>
-            <div className="cbb-refine__actions">
-              <Button onClick={() => void refine()} loading={work === "run"} loadingLabel={t("generating")} disabled={Boolean(work) || historical || instruction.trim().length < 3}>
-                {t(selectedSection === "all" ? "generateNarrative" : "refineSelected")}
-              </Button>
-              {run && ["queued", "running"].includes(run.run.status) ? (
-                <Button variant="secondary" onClick={() => void cancel()} loading={work === "cancel"}>
-                  <Square size={14} aria-hidden="true" />{t("cancelGeneration")}
-                </Button>
-              ) : null}
-            </div>
-            {run ? <p className={`cbb-run-state cbb-run-state--${run.run.status}`}>{t(`run_${run.run.status}`)}</p> : null}
-          </section>
-          <section className="cbb-delivery-actions">{deliveryActions??<DeliveryPanel scenarioId={view.brief.scenarioId} revisionId={view.brief.sourceRevisionId} briefId={view.brief.id} briefVersion={view.brief.version} htmlReady={view.brief.status!=='pending'}/>}</section>
-        </aside>
       </div>
-    </main>
+    </article>
   );
 }

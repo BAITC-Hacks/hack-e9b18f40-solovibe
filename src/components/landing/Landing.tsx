@@ -143,20 +143,6 @@ function CityTabletop({ evaluation }: { evaluation: Evaluation }) {
   );
 }
 
-function Metric({ label, before, after, suffix }: { label: string; before?: string; after: string; suffix?: string }) {
-  return (
-    <div className="landing-metric">
-      <span>{label}</span>
-      <div>
-        {before ? <small>{before}</small> : null}
-        {before ? <ArrowRight aria-hidden="true" /> : null}
-        <strong>{after}</strong>
-        {suffix ? <em>{suffix}</em> : null}
-      </div>
-    </div>
-  );
-}
-
 export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-districts' }: LandingProps) {
   const locale = useLocale();
   const t = useTranslations("landing");
@@ -241,24 +227,12 @@ export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-
             </button>
           </div>
 
-          <div className="landing-metrics" aria-live="polite">
-            <Metric
-              label={t("budget")}
-              before={variant === "two-districts" ? compactFormat.format(best.cost) : undefined}
-              after={compactFormat.format(current.cost)}
-              suffix={tCommon("units")}
-            />
-            <Metric
-              label={t("score")}
-              before={variant === "two-districts" && best.score !== null ? format.format(best.score) : undefined}
-              after={current.score === null ? t("notAvailable") : format.format(current.score)}
-            />
+          <div className="landing-proof-line" aria-live="polite">
+            <div><span>{t("budget")}</span><p>{variant === "two-districts" ? <><s>{compactFormat.format(best.cost)}</s><ArrowRight aria-hidden="true" /></> : null}<strong>{compactFormat.format(current.cost)}</strong> <small>{tCommon("units")}</small></p></div>
+            <div><span>{t("score")}</span><p>{variant === "two-districts" && best.score !== null ? <><s>{format.format(best.score)}</s><ArrowRight aria-hidden="true" /></> : null}<strong>{current.score === null ? t("notAvailable") : format.format(current.score)}</strong></p></div>
+            <p className="landing-price">{variant === "two-districts" ? t("conditionPrice", { value: format.format(scorePrice) }) : t("conditionPriceOff")}</p>
           </div>
-          <p className="landing-price">
-            {variant === "two-districts"
-              ? t("conditionPrice", { value: format.format(scorePrice) })
-              : t("conditionPriceOff")}
-          </p>
+          <p className="landing-model-note">{t("modelNote")}</p>
 
           <div className="landing-actions">
             <Button
@@ -269,14 +243,7 @@ export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-
             >
               {t("primaryAction")} <ArrowRight size={18} aria-hidden="true" />
             </Button>
-            <div className="landing-actions__secondary">
-              <button type="button" onClick={() => start("example")} disabled={pending !== null}>
-                <FileText size={17} aria-hidden="true" /> {t("exampleAction")}
-              </button>
-              <button type="button" onClick={() => start("blank")} disabled={pending !== null}>
-                <Plus size={17} aria-hidden="true" /> {t("blankAction")}
-              </button>
-            </div>
+            <details className="landing-other-starts"><summary>{t("otherStarts")}</summary><div className="landing-actions__secondary"><button type="button" onClick={() => start("example")} disabled={pending !== null}><FileText size={17} aria-hidden="true" /> {t("exampleAction")}</button><button type="button" onClick={() => start("blank")} disabled={pending !== null}><Plus size={17} aria-hidden="true" /> {t("blankAction")}</button></div></details>
           </div>
           {error ? (
             <Alert tone="danger" className="landing-error" title={t("startFailed")}>
@@ -293,89 +260,22 @@ export function Landing({ best, twoDistricts, deliveryProof,initialVariant='two-
         </div>
       </section>
 
-      <section className="landing-comparison" aria-labelledby="landing-comparison-title">
-        <div className="landing-comparison__heading">
-          <h2 id="landing-comparison-title">{t("comparisonTitle", { count: changedCount })}</h2>
-          <p>{t("comparisonIntro", { retained: retainedCount, changed: changedCount })}</p>
-        </div>
-        <div className="landing-decision-list">
-          {rows.map(({ decision, retained }) => {
-            const replaced = retained ? null : removed[replacedIndex++];
-            return (
-              <article key={decisionKey(decision)} className={retained ? "landing-decision is-retained" : "landing-decision is-changed"}>
-                <span className="landing-decision__icon" aria-hidden="true">
-                  {retained ? <Check size={17} /> : <ArrowRight size={17} />}
-                </span>
-                <div>
-                  <strong>{tMeasures(decision.measureId)}</strong>
-                  <span>{decision.districtId ? tDistricts(decision.districtId) : tCommon("city")}</span>
-                  {replaced ? (
-                    <small>
-                      {t("insteadOf", {
-                        measure: tMeasures(replaced.measureId),
-                        district: replaced.districtId ? tDistricts(replaced.districtId) : tCommon("city"),
-                      })}
-                    </small>
-                  ) : null}
-                </div>
-                <em>{t(retained ? "retained" : "changed")}</em>
-              </article>
-            );
-          })}
-        </div>
+      <section className="landing-how" id="how-it-works" aria-labelledby="landing-comparison-title">
+        <div><h2 id="landing-comparison-title">{t("comparisonTitle", { count: changedCount })}</h2><p>{t("comparisonIntro", { retained: retainedCount, changed: changedCount })}</p></div>
+        <details className="landing-decision-details">
+          <summary>{t("decisionDetails", { retained: retainedCount, changed: changedCount })}</summary>
+          <div className="landing-decision-list">
+            {rows.map(({ decision, retained }) => {
+              const replaced = retained ? null : removed[replacedIndex++];
+              return <article key={decisionKey(decision)} className={retained ? "landing-decision is-retained" : "landing-decision is-changed"}><span className="landing-decision__icon" aria-hidden="true">{retained ? <Check size={17} /> : <ArrowRight size={17} />}</span><div><strong>{tMeasures(decision.measureId)}</strong><span>{decision.districtId ? tDistricts(decision.districtId) : tCommon("city")}</span>{replaced ? <small>{t("insteadOf", { measure: tMeasures(replaced.measureId), district: replaced.districtId ? tDistricts(replaced.districtId) : tCommon("city") })}</small> : null}</div><em>{t(retained ? "retained" : "changed")}</em></article>;
+            })}
+          </div>
+        </details>
       </section>
 
-      <section className="landing-outcome" aria-labelledby="landing-outcome-title">
-        <div className="landing-outcome__copy">
-          <h2 id="landing-outcome-title">{t("outcomeTitle")}</h2>
-          <p>{t("outcomeIntro")}</p>
-          <ul>
-            <li>{t("outcomeCompare")}</li>
-            <li>{t("outcomeEdit")}</li>
-            <li>{t("outcomeDeliver")}</li>
-          </ul>
-        </div>
-        <div className="landing-brief">
-          {deliveryProof ?? (
-            <>
-              <div className="landing-brief__header">
-                <FileText size={21} aria-hidden="true" />
-                <strong>{t("briefTitle")}</strong>
-              </div>
-              <p>{t("briefFinding", { districts: current.directDistrictIds.length })}</p>
-              <dl>
-                <div>
-                  <dt>{t("briefBudget")}</dt>
-                  <dd>{t("briefBudgetValue", { value: compactFormat.format(current.cost) })}</dd>
-                </div>
-                <div>
-                  <dt>{t("briefScore")}</dt>
-                  <dd>{current.score === null ? t("notAvailable") : format.format(current.score)}</dd>
-                </div>
-                <div>
-                  <dt>{t("briefControl")}</dt>
-                  <dd>{t("briefControlValue")}</dd>
-                </div>
-              </dl>
-              <p className="landing-brief__note">{t("modelNote")}</p>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="landing-final-cta">
-        <div>
-          <h2>{t("finalTitle")}</h2>
-          <p>{t("finalIntro")}</p>
-        </div>
-        <Button
-          onClick={() => start(variant)}
-          loading={pending === variant}
-          loadingLabel={t("starting")}
-          disabled={pending !== null}
-        >
-          {t("primaryAction")} <ArrowRight size={18} aria-hidden="true" />
-        </Button>
+      <section className="landing-example" id="decision-example" aria-labelledby="landing-outcome-title">
+        <div className="landing-example__copy"><h2 id="landing-outcome-title">{t("outcomeTitle")}</h2><p>{t("outcomeIntro")}</p><ol><li>{t("outcomeCompare")}</li><li>{t("outcomeEdit")}</li><li>{t("outcomeDeliver")}</li></ol></div>
+        <div className="landing-brief">{deliveryProof ?? <><div className="landing-brief__header"><FileText size={21} aria-hidden="true" /><strong>{t("briefTitle")}</strong></div><p>{t("briefFinding", { districts: current.directDistrictIds.length })}</p><p><strong>{t("briefBudgetValue", { value: compactFormat.format(current.cost) })}</strong>, {current.score === null ? t("notAvailable") : format.format(current.score)}</p></>}</div>
       </section>
     </main>
   );

@@ -56,12 +56,6 @@ export async function listRuns(p: Principal, scenarioId: string, before?: string
 }
 export async function createRun(p: Principal, raw: z.input<typeof createRunSchema>, network: string) {
   const input=createRunSchema.parse(raw);
-  if(input.context.stressId){const s=await getStress(p,input.context.stressId);if(s.experiment.scenarioId!==input.scenarioId||s.experiment.sourceRevisionId!==input.inputRevisionId)throw new CityError('INVALID_REQUEST');}
-  if(input.procedure==='brief'){
-    const [brief]=await getDb().select().from(cityBriefs).where(and(eq(cityBriefs.id,input.context.briefId??''),inArray(cityBriefs.ownerId,p.ownerIds)));
-    if(!brief||brief.scenarioId!==input.scenarioId||brief.sourceRevisionId!==input.inputRevisionId)throw new CityError('NOT_FOUND',404);
-    if(brief.version!==input.context.briefVersion)throw new CityError('STALE_BRIEF',409);
-  }else if(input.context.briefId)throw new CityError('INVALID_REQUEST');
   const id = await getDb().transaction(async tx => {
     const scenario = await requireScenario(p, input.scenarioId, tx, true);
     const [owner] = await tx.select().from(cityOwners).where(eq(cityOwners.id, scenario.ownerId));
@@ -69,6 +63,14 @@ export async function createRun(p: Principal, raw: z.input<typeof createRunSchem
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${quotaKey}))`);
     const [duplicate] = await tx.select().from(cityRuns).where(and(eq(cityRuns.ownerId, scenario.ownerId), eq(cityRuns.clientRequestId, input.clientRequestId)));
     if (duplicate) return duplicate.id;
+    // A retried request returns its durable result even after the brief has advanced.
+    if(input.context.stressId){const s=await getStress(p,input.context.stressId,tx);if(s.experiment.scenarioId!==input.scenarioId||s.experiment.sourceRevisionId!==input.inputRevisionId)throw new CityError('INVALID_REQUEST');}
+    if(input.procedure==='brief'){
+      const [brief]=await tx.select().from(cityBriefs).where(and(eq(cityBriefs.id,input.context.briefId??''),inArray(cityBriefs.ownerId,p.ownerIds)));
+      if(!brief||brief.scenarioId!==input.scenarioId||brief.sourceRevisionId!==input.inputRevisionId)throw new CityError('NOT_FOUND',404);
+      if(brief.version!==input.context.briefVersion)throw new CityError('STALE_BRIEF',409);
+    }else if(input.context.briefId)throw new CityError('INVALID_REQUEST');
+
     if (!input.context.stressId && input.procedure!=='brief' && scenario.currentRevisionId !== input.inputRevisionId) throw new CityError("STALE_REVISION", 409);
     if (input.parentRunId) {
       const parent = await requireRun(p, input.parentRunId, tx);

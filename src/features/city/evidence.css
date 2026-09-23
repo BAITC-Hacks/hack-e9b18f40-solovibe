@@ -31,3 +31,69 @@
 .cb-budget-evidence { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 16px; border-radius: 16px; background: #e8efeb; font-variant-numeric: tabular-nums; }
 .cb-selection-warning { color: #845319; font-size: 13px; line-height: 1.5; margin: 12px 0; }
 @media (max-width: 480px) { .cb-indicator-evidence summary { grid-template-columns: 1fr; } .cb-evidence summary { padding: 12px; } }
+
+/* Focused plan overview: one district ledger, one selected detail, optional evidence. */
+.cb-city-at-a-glance { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(120px,.8fr); gap:24px; align-items:center; margin:20px 0; }
+.cb-district-ledger-labels,.cb-district-ledger>button { display:grid; grid-template-columns:minmax(0,1fr) 82px 68px; gap:8px; align-items:center; }
+.cb-district-ledger-labels { padding:0 12px 8px; color:#5b7069; font-size:11px; }
+.cb-district-ledger-labels span:not(:first-child) { text-align:right; }
+.cb-district-ledger>button { width:100%; min-height:48px; text-align:left; padding:8px 12px; border:1px solid transparent; border-bottom-color:#d4dfd9; border-radius:0; color:#183c39; background:transparent; }
+.cb-district-ledger>button:hover { background:#f1f6f2; }
+.cb-district-ledger>button[aria-pressed=true] { border-color:#8db9a9; border-radius:13px; background:#e2f0e9; box-shadow:inset 0 1px #fff; }
+.cb-ledger-name { display:flex; align-items:center; gap:9px; font-size:14px; font-weight:550; }
+.cb-ledger-dot { width:6px; height:6px; border-radius:50%; background:#9eafa6; flex-shrink:0; }
+.cb-district-ledger>button[aria-pressed=true] .cb-ledger-dot { background:#087f6f; }
+.cb-ledger-result { display:flex; align-items:baseline; justify-content:flex-end; gap:6px; font-variant-numeric:tabular-nums; }
+.cb-ledger-result strong { font-size:16px; font-weight:600; }
+.cb-ledger-result small { font-size:11px; color:#5b7069; }
+.cb-ledger-result small.cb-value-positive { color:#26714c; }
+.cb-ledger-result small.cb-value-negative { color:#b13f39; }
+.cb-ledger-allocation { justify-self:end; text-align:center; min-width:28px; padding:3px 7px; border-radius:8px; font-size:12px; color:#5b7069; background:#edf2ee; }
+.cb-ledger-allocation-active { color:#08695c; background:#d7eee5; font-weight:600; }
+.cb-overview-sculpture { padding:12px 0; min-width:0; background:radial-gradient(ellipse at 50% 45%,#e0eee5,transparent 72%); }
+.cb-overview-city-art { display:block; width:100%; max-height:190px; }
+.cb-overview-sculpture>p { max-width:230px; margin:0 auto; text-align:center; font-size:11px; line-height:1.5; color:#5b7069; }
+.cb-selected-district { padding:18px 0 4px; border-top:1px solid #d4dfd9; }
+.cb-selected-district>header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.cb-selected-district h3 { display:flex; align-items:center; gap:8px; font-size:18px; font-weight:600; }
+.cb-selected-district>header>span { font-size:11px; color:#5b7069; }
+.cb-weak-caption { margin:10px 0 4px; font-size:12px; color:#5b7069; }
+.cb-weak-indicators { display:grid; gap:0; }
+.cb-weak-indicators>button { display:flex; align-items:center; justify-content:space-between; gap:16px; text-align:left; min-height:57px; padding:9px 0; border-bottom:1px solid #e0e7e2; background:transparent; font-size:14px; }
+.cb-weak-indicators>button:hover { color:#087f6f; }
+.cb-weak-indicators>button>span:first-child { display:grid; gap:3px; }
+.cb-weak-indicators small { font-size:11px; color:#5b7069; }
+.cb-weak-values { display:flex; align-items:center; gap:8px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cb-weak-values>span { color:#5b7069; font-size:12px; }
+.cb-district-actions { font-size:12px; color:#5b7069; }
+.cb-district-actions summary { min-height:44px; padding:12px 0; cursor:pointer; }
+.cb-district-actions p { margin:0 0 10px; line-height:1.6; }
+.cb-district-actions strong { font-weight:550; color:#183c39; }
+.cb-plan-overview .cb-evidence { gap:0; margin-top:8px; border-top:1px solid #d4dfd9; }
+.cb-plan-overview .cb-evidence>details { background:transparent; border:0; border-bottom:1px solid #d4dfd9; border-radius:0; padding:0; }
+.cb-plan-overview .cb-evidence>details>summary { padding:13px 0; min-height:48px; font-size:13px; font-weight:500; color:#08695c; }
+.cb-plan-overview .cb-evidence>details[open] { padding-bottom:16px; }
+.cb-plan-overview .cb-evidence-all { order:-1; }
+.cb-plan-overview .cb-evidence-all>p { font-size:12px; color:#5b7069; }
+.cb-choices-list { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:0; }
+.cb-choice-row { display:grid; grid-template-columns:24px minmax(0,1fr) auto; align-items:center; gap:10px; padding:13px 0; min-height:80px; border-bottom:1px solid #d4dfd9; }
+.cb-choice-row:last-child { border-bottom:0; }
+.cb-choice-number { display:grid; place-items:center; width:24px; height:24px; border-radius:8px; background:#e8efeb; font-size:11px; color:#5b7069; }
+.cb-choice-row-selected .cb-choice-number { background:#087f6f; color:#fff; }
+.cb-choice-copy { min-width:0; display:grid; gap:5px; }
+.cb-choice-copy>strong { font-size:14px; font-weight:550; line-height:1.4; overflow-wrap:anywhere; }
+.cb-choice-copy>span { display:flex; align-items:center; flex-wrap:wrap; gap:5px; color:#5b7069; font-size:12px; }
+.cb-choice-lock { display:flex; align-items:center; gap:4px; font-size:11px; color:#5b7069; }
+.cb-choice-controls { display:flex; align-items:center; gap:2px; }
+.cb-choice-controls button { min-height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:6px; }
+.cb-choice-replace { font-size:12px; color:#08695c; padding:0 10px; background:#edf5ef; }
+.cb-choice-replace:hover:not(:disabled) { background:#d7eee5; }
+.cb-choice-remove { width:44px; color:#5b7069; background:transparent; }
+.cb-choice-remove:hover:not(:disabled) { color:#b13f39; background:#faeeeb; }
+.cb-choice-controls button:disabled { opacity:.45; cursor:not-allowed; }
+.cb-choice-row-empty { min-height:66px; }
+.cb-choice-add { grid-column:2/-1; display:flex; align-items:center; gap:9px; min-height:44px; color:#08695c; text-align:left; font-size:13px; }
+.cb-choice-lock-hint { margin-top:10px; font-size:12px; color:#5b7069; line-height:1.5; }
+.cb-plan-overview button:focus-visible,.cb-plan-choices button:focus-visible,.cb-district-actions summary:focus-visible { outline:2px solid #087f6f; outline-offset:3px; }
+@media (max-width:760px) { .cb-city-at-a-glance { grid-template-columns:1fr; gap:8px; } .cb-overview-sculpture { display:flex; align-items:center; gap:8px; padding:0; } .cb-overview-city-art { width:130px; max-height:100px; flex-shrink:0; } .cb-overview-sculpture>p { margin:0; max-width:none; text-align:left; } }
+@media (max-width:420px) { .cb-district-ledger-labels,.cb-district-ledger>button { grid-template-columns:minmax(0,1fr) 78px 54px; gap:6px; } .cb-choice-controls { grid-column:2/-1; justify-content:flex-end; } .cb-choice-row { grid-template-columns:24px minmax(0,1fr); gap:8px 10px; padding:12px 0; } .cb-choice-controls button { min-height:44px; } }
